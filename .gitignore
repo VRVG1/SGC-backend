@@ -1,0 +1,14 @@
+# Environment
+EnvPython/*
+
+# credenciales
+mail.txt
+
+# db
+db.*
+
+# pycache
+**/__pycache__
+
+# migrations
+**/migrations
