@@ -33,7 +33,7 @@ SECRET_KEY = ''.join([random.SystemRandom().choice(chars) for i in range(50)])
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*', "3.84.204.202"]
 
 
 # Application definition
@@ -157,7 +157,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ORIGIN_WHITELIST = [
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://3.84.204.202:3000/',
+    'http://localhost:3000/'
 ]
 
 CELERY_BROKER_URL = 'amqp://localhost'
