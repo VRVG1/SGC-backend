@@ -181,7 +181,7 @@ def getAsignanpk(request, pk):
     '''
 
     try:
-        usuario = Usuarios.objects.get(ID_Usuario=pk)
+        usuario = Usuarios.objects.get(PK=pk)
         asign = Asignan.objects.filter(ID_Usuario=usuario)
     except Asignan.DoesNotExist:
         return Response({'Error': 'No hay asignan'}, status=status.HTTP_404_NOT_FOUND)
