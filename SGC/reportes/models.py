@@ -1,5 +1,6 @@
 from django.db import models
 from materias.models import Asignan
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 # Create your models here.
 
@@ -14,6 +15,7 @@ class Reportes(models.Model):
     Fecha_Entrega = models.DateField(null=False)
     Descripcion = models.TextField(max_length=1000, null=True, blank=True)
     Opcional = models.BooleanField(default=False)
+    Avance = models.BooleanField(default=False)
 
 
 class Generan(models.Model):
@@ -22,9 +24,11 @@ class Generan(models.Model):
 
     ID_Generacion = models.AutoField(primary_key=True)
     Estatus = models.CharField(max_length=20, null=True)
-    Sememestre = models.CharField(max_length=30, null=True)
     ID_Asignan = models.ForeignKey(Asignan, on_delete=models.CASCADE)
     ID_Reporte = models.ForeignKey(Reportes, on_delete=models.CASCADE)
+    Periodo = models.CharField(max_length=24,null=False,default='X - X XXXX')
+    Reprobados = models.IntegerField(null=False, validators=[MinValueValidator(0),MaxValueValidator(50)])
+
 
 
 class Alojan(models.Model):

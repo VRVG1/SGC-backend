@@ -1,7 +1,4 @@
-from re import A
 from rest_framework import serializers
-
-from materias.models import Asignan
 from .models import Reportes, Generan, Alojan
 
 
