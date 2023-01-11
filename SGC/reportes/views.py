@@ -30,7 +30,6 @@ class ReportesView(generics.ListAPIView):
     queryset = Reportes.objects.all()
 
 
-# NOTE: ESte para que es?
 class GeneranView(generics.ListAPIView):
     '''
     Vista que permite ver todos los generan registrados en la BD
@@ -89,7 +88,7 @@ class CreateReportesView(APIView):
                 for i in asignan:
                     ID_Asignan = Asignan.objects.get(ID_Asignan=i.ID_Asignan)
                     generate = Generan(
-                        Estatus=None, Sememestre=semestre, ID_Asignan=i, ID_Reporte=ID_Reporte)
+                        Estatus=None, Periodo=semestre, ID_Asignan=i, ID_Reporte=ID_Reporte, Reprobados=0)
                     generate.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -237,7 +236,7 @@ def EnviarGeneran(request, pk):
 
             for x in asignan:
                 generate = Generan(
-                    Estatus=None, Sememestre=semestre, ID_Asignan=x, ID_Reporte=reporte)
+                    Estatus=None, Periodo=semestre, ID_Asignan=x, ID_Reporte=reporte, Reprobados=0)
                 generate.save()
 
             return Response({'Success': 'Generan creado'}, status=status.HTTP_201_CREATED)
@@ -312,9 +311,10 @@ def CrearGeneran(request, pk):
     elif request.method == 'PUT':
         data = {
             'Estatus': estatus,
-            'Sememestre': generan.Sememestre,
+            'Periodo': generan.Sememestre,
             'ID_Asignan': generan.ID_Asignan.ID_Asignan,
             'ID_Reporte': generan.ID_Reporte.ID_Reporte,
+            'Reprobados': generan.Reprobados,
         }
         serializer_class = GeneranSerializer(generan, data=data)
         if serializer_class.is_valid():
