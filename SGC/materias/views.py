@@ -40,7 +40,6 @@ class CarrerasView(generics.ListAPIView):
     queryset = Carreras.objects.all()
 
 
-# TODO: Checar donde se usa esta vista
 class AsignanView(generics.ListAPIView):
     '''
     Vista que muestra todos los asignan registradas
@@ -93,7 +92,6 @@ class CreateCarreraView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# TODO: Ver en donde se utiliza esta vista
 class AsignarMateriaView(APIView):
     '''
     Vista que permite crear (registrar) la asignacion de materia a un usuario en la BD
@@ -112,13 +110,15 @@ class AsignarMateriaView(APIView):
         if serializer.is_valid():
             usuario = serializer.validated_data.get('ID_Usuario')
             materia = serializer.validated_data.get('ID_Materia')
-            carrera = serializer.validated_data.get('ID_Carrera')
-            grado = serializer.validated_data.get('Grado')
+            semestre = serializer.validated_data.get('Semestre')
             grupo = serializer.validated_data.get('Grupo')
+            hora = serializer.validated_data.get('Hora')
+            dia = serializer.validated_data.get('Dia')
+            aula = serializer.validated_data.get('Aula')
 
             try:
                 asignan = Asignan.objects.get(
-                    ID_Usuario=usuario, ID_Materia=materia, ID_Carrera=carrera, Grado=grado, Grupo=grupo)
+                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula)
             except Asignan.DoesNotExist:
                 serializer.save()
 
@@ -137,10 +137,10 @@ class AsignarMateriaView(APIView):
                     semestre = 'Agosto - Diciembre ' + str(fecha.year)
 
                 asignan = Asignan.objects.get(
-                    ID_Usuario=usuario, ID_Materia=materia, ID_Carrera=carrera, Grado=grado, Grupo=grupo)
+                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula)
                 for x in reportes:
                     generate = Generan(
-                        Estatus=None, Sememestre=semestre, ID_Asignan=asignan, ID_Reporte=x)
+                        Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=semestre, Reprobados=0)
                     generate.save()
 
             user = Usuarios.objects.get(Nombre_Usuario=usuario)
@@ -200,7 +200,7 @@ def borrarM(request, pk):
     (ADMIN)
     '''
     try:
-        materia = Materias.objects.get(ID_Materia=pk)
+        materia = Materias.objects.get(Clave_reticula=pk)
     except Materias.DoesNotExist:
         return Response({'Error': 'Materia no existe'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -221,7 +221,7 @@ def updateM(request, pk):
     (ADMIN)
     '''
     try:
-        materia = Materias.objects.get(ID_Materia=pk)
+        materia = Materias.objects.get(Clave_reticula=pk)
     except Materias.DoesNotExist:
         return Response({'Error': 'Materia no existe'}, status=status.HTTP_400_BAD_REQUEST)
 
