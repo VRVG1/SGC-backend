@@ -1,6 +1,6 @@
 # Environment
 EnvPython/*
-
+**/PythonEnv/*
 # credenciales
 mail.txt
 
