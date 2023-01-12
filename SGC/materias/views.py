@@ -383,6 +383,6 @@ def getAsignanCarrerapk(request, pk):
     if request.method == 'GET':
         lista = []
         for i in asign:
-            aux = {'ID_Asignan':i.ID_Asignan,'Semestre':i.Semestre,'Grupo':i.Grupo,'Hora':i.Hora,'Dia':i.Dia,'Aula':i.Aula,'ID_Usuario':i.ID_Usuario.PK,'ID_Materia':i.ID_Materia.Nombre_Materia,'Carrera':i.ID_Materia.Carrera.Nombre_Carrera}
+            aux = {'ID_Asignan':i.ID_Asignan,'Semestre':i.Semestre,'Grupo':i.Grupo,'Hora':i.Hora,'Dia':i.Dia,'Aula':i.Aula,'ID_Usuario':i.ID_Usuario.PK,'Nombre_Materia':i.ID_Materia.Nombre_Materia,'Carrera':i.ID_Materia.Carrera.Nombre_Carrera}
             lista.append(aux)
         return Response(lista, status=status.HTTP_200_OK)
