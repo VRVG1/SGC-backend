@@ -346,3 +346,21 @@ def AdminGetAsignan(request, pk):
     if request.method == 'GET':
         serializer = AsignanSerializer(asignan, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getMateriasXCarrera(request, id):
+    '''
+    Vista que regresa todas las materias de una carrera por su pk
+    (ADMIN Y DOCENTE)
+    '''
+    try:
+        carrera = Carreras.objects.get(ID_Carrera=id)
+        materias = Materias.objects.filter(Carrera=carrera)
+    except Carreras.DoesNotExist:
+        return Response({'Error':'Carrera no existe'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = MateriaSerializer(materias, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
