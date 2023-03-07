@@ -46,13 +46,15 @@ erDiagram
         date Fecha_Entrega
         string-1000 Descripcion
         choice Opcional
-        choice Avance
+        choice Unidad
     }
     
     Generan ||--o{ Alojan : a
     Generan {
         auto_increment ID_Generacion PK
         string-20 Estatus
+        string-20 Periodo
+        date Fecha_Entrega
         int ID_Asignan FK "from Asignan"
         int ID_Reporte FK "from Reportes"
         int reprobados

@@ -10,6 +10,7 @@ from usuarios.models import Usuarios
 from .serializers import CarreraSerializer, MateriaSerializer, AsignanSerializer
 from .models import Asignan, Materias, Carreras
 from django.contrib.auth.models import User
+from django.db.models import Q
 from reportes.models import Generan, Reportes
 from persoAuth.permissions import OnlyAdminPermission, AdminDocentePermission, AdminEspectadorDocentePermission, AdminEspectadorPermission
 
@@ -118,13 +119,15 @@ class AsignarMateriaView(APIView):
 
             try:
                 asignan = Asignan.objects.get(
-                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula)
+                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
             except Asignan.DoesNotExist:
                 serializer.save()
 
             reportes = Reportes.objects.all()
             if not reportes:
-                pass
+                asignan = Asignan.objects.get(
+                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
+                crearReportesUnidad(asignan,usuario)
             else:
                 date01 = 'Jun 20'
                 fecha = date.today()
@@ -132,16 +135,19 @@ class AsignarMateriaView(APIView):
                     date01, '%b %d').date().replace(year=fecha.year)
 
                 if fecha < parse01:
-                    semestre = 'Enero - Junio ' + str(fecha.year)
+                    periodo = 'Enero - Junio ' + str(fecha.year)
                 else:
-                    semestre = 'Agosto - Diciembre ' + str(fecha.year)
+                    periodo = 'Agosto - Diciembre ' + str(fecha.year)
 
                 asignan = Asignan.objects.get(
-                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula)
+                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
                 for x in reportes:
-                    generate = Generan(
-                        Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=semestre, Reprobados=0)
-                    generate.save()
+                    if x.Unidad != True:
+                        generate = Generan(
+                            Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=periodo, Reprobados=0)
+                        generate.save()
+
+                crearReportesUnidad(asignan,usuario)
 
             user = Usuarios.objects.get(Nombre_Usuario=usuario)
             user.Permiso = False
@@ -150,6 +156,47 @@ class AsignarMateriaView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+'''
+Metodo que ayuda a realizar la asignacion de reportes de unidad a cada maestro
+que se asigne materias.
+'''
+def crearReportesUnidad(asignan,usuario):
+    user = Usuarios.objects.get(Nombre_Usuario=usuario)
+    materia = Materias.objects.get(Clave_reticula=asignan.ID_Materia.Clave_reticula)
+
+    manyAsignan = Asignan.objects.filter(Q(ID_Usuario=asignan.ID_Usuario, ID_Materia=asignan.ID_Materia, Semestre=asignan.Semestre, Grupo=asignan.Grupo) & ~Q(Hora=asignan.Hora,Dia=asignan.Dia,Aula=asignan.Aula))
+
+    if len(manyAsignan) < 1:
+        date01 = 'Jun 20'
+        fecha = date.today()
+        parse01 = datetime.strptime(
+            date01, '%b %d').date().replace(year=fecha.year)
+
+        if fecha < parse01:
+            semestre = 'Enero - Junio ' + str(fecha.year)
+        else:
+            semestre = 'Agosto - Diciembre ' + str(fecha.year)
+
+        for i in range(materia.unidades):
+            report = Reportes(
+                Nombre_Reporte = f'{materia.Nombre_Materia} - Grupo: {asignan.Grupo} - Unidad: {i+1} - {user.Nombre_Usuario}',
+                Fecha_Entrega = date.today(),
+                Descripcion = '',
+                Opcional = False,
+                Unidad = True
+            )
+            report.save()
+
+            generate = Generan(
+                Estatus = '',
+                Fecha_Entrega = date.today(),
+                ID_Asignan = asignan,
+                ID_Reporte = report,
+                Periodo = semestre,
+                Reprobados = 0,
+                Unidad = i+1
+            )
+            generate.save()
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])

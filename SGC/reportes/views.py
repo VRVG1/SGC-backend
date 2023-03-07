@@ -88,7 +88,7 @@ class CreateReportesView(APIView):
                 for i in asignan:
                     ID_Asignan = Asignan.objects.get(ID_Asignan=i.ID_Asignan)
                     generate = Generan(
-                        Estatus=None, Periodo=semestre, ID_Asignan=i, ID_Reporte=ID_Reporte, Reprobados=0)
+                        Estatus=None, Periodo=semestre, Fecha_Entrega=fecha, ID_Asignan=i, ID_Reporte=ID_Reporte, Reprobados=0)
                     generate.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -236,7 +236,7 @@ def EnviarGeneran(request, pk):
 
             for x in asignan:
                 generate = Generan(
-                    Estatus=None, Periodo=semestre, ID_Asignan=x, ID_Reporte=reporte, Reprobados=0)
+                    Estatus=None, Periodo=semestre, Fecha_Entrega=fecha, ID_Asignan=x, ID_Reporte=reporte, Reprobados=0)
                 generate.save()
 
             return Response({'Success': 'Generan creado'}, status=status.HTTP_201_CREATED)
@@ -311,7 +311,8 @@ def CrearGeneran(request, pk):
     elif request.method == 'PUT':
         data = {
             'Estatus': estatus,
-            'Periodo': generan.Sememestre,
+            'Periodo': generan.Periodo,
+            'Fecha_Entrega':generan.Fecha_Entrega,
             'ID_Asignan': generan.ID_Asignan.ID_Asignan,
             'ID_Reporte': generan.ID_Reporte.ID_Reporte,
             'Reprobados': generan.Reprobados,
@@ -407,3 +408,114 @@ def borrarEntrega(request, pk):
             except:
                 return Response({'Error': 'Error al eliminar pdf y alojan'})
             return Response({'Exito': 'PDFs borrados con exito'}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getResportesUnidad(request, pk):
+    '''
+    Vista que permite obtener los reportes de unidad de un usuario
+    (Por el momento solo para la vista del usuario)
+    (ADMIN Y DOCENTE)
+    '''
+    try:
+        user = Usuarios.objects.get(ID_Usuario=pk)
+    except Usuarios.DoesNotExist:
+        return Response({'Error':'Usuario no existe'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        try:
+            RepUnidades = Generan.objects.filter(ID_Asignan__ID_Usuario=user, ID_Reporte__Unidad=True)
+            
+            lista = []
+            for x,i in enumerate(RepUnidades):
+                if x == 0:
+                    asignacion = Asignan.objects.get(ID_Asignan=i.ID_Asignan.ID_Asignan)
+                    aux = {
+                        'Nombre_Materia':asignacion.ID_Materia.Nombre_Materia,
+                        'Semestre':asignacion.Semestre,
+                        'Grupo':asignacion.Grupo,
+                        'Aula':asignacion.Aula,
+                        'Unidades':asignacion.ID_Materia.unidades
+                    }
+                    lista.append(aux)
+                    aux = {
+                        'ID_Generacion':i.ID_Generacion,
+                        'Fecha_Entrega':i.Fecha_Entrega,
+                        'Reprobados':i.Reprobados,
+                        'Unidad':i.Unidad
+                    }
+                    lista.append(aux)
+                    oldAs = i.ID_Asignan.ID_Asignan
+
+                elif i.ID_Asignan.ID_Asignan != oldAs:
+                    asignacion = Asignan.objects.get(ID_Asignan=i.ID_Asignan.ID_Asignan)
+                    aux = {
+                        'Nombre_Materia':asignacion.ID_Materia.Nombre_Materia,
+                        'Semestre':asignacion.Semestre,
+                        'Grupo':asignacion.Grupo,
+                        'Aula':asignacion.Aula,
+                        'Unidades':asignacion.ID_Materia.unidades
+                    }
+                    lista.append(aux)
+                    aux = {
+                        'ID_Generacion':i.ID_Generacion,
+                        'Fecha_Entrega':i.Fecha_Entrega,
+                        'Reprobados':i.Reprobados,
+                        'Unidad':i.Unidad
+                    }
+                    lista.append(aux)
+                    oldAs = i.ID_Asignan.ID_Asignan
+                else:
+                    aux = {
+                        'ID_Generacion':i.ID_Generacion,
+                        'Fecha_Entrega':i.Fecha_Entrega,
+                        'Reprobados':i.Reprobados,
+                        'Unidad':i.Unidad
+                    }
+                    lista.append(aux)
+
+            return Response(lista, status=status.HTTP_200_OK)
+        except Generan.DoesNotExist:
+            return Response({'Error':'No hay generan'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET','PUT'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def entregarUnidad(request, pk):
+
+    try:
+        generanU = Generan.objects.get(ID_Generacion=pk)
+    except Generan.DoesNotExist:
+        return Response({'Error':'Generan no existe'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        serializer = GeneranSerializer(generanU)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    if request.method == 'PUT':
+        date01 = 'Jun 20'
+        fecha = date.today()
+        parse01 = datetime.strptime(
+            date01, '%b %d').date().replace(year=fecha.year)
+
+        if fecha < parse01:
+            semestre = 'Enero - Junio ' + str(fecha.year)
+        else:
+            semestre = 'Agosto - Diciembre ' + str(fecha.year)
+
+        data = {
+            'ID_Generacion':generanU,
+            'Estatus':'Entregado Unidad',
+            'Fecha_Entrega':request.data['Fecha_Entrega'],
+            'ID_Asignan':generanU.ID_Asignan.ID_Asignan,
+            'ID_Reporte':generanU.ID_Reporte.ID_Reporte,
+            'Periodo':semestre,
+            'Reprobados':request.data['Reprobados'],
+            'Unidad':generanU.Unidad,
+        }
+        generan_serializer = GeneranSerializer(generanU, data=data)
+        if generan_serializer.is_valid():
+            generan_serializer.save()
+            return Response(generan_serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(generan_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
