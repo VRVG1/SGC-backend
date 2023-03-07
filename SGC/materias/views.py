@@ -193,7 +193,7 @@ def crearReportesUnidad(asignan,usuario):
                 ID_Asignan = asignan,
                 ID_Reporte = report,
                 Periodo = semestre,
-                Reprobados = 0,
+                Reprobados = -1,
                 Unidad = i+1
             )
             generate.save()
