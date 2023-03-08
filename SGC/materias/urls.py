@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import MateriasView, CreateMateriasView, borrarM, borrarAs, CreateCarreraView, AsignarMateriaView, CarrerasView, borrarC
 from .views import updateM, updateC, AsignanView, getAsignan, getAsignanEspecific, AdminGetAsignan, getAsignanpk, getMateriasXCarrera, getAsignanCarrerapk
+from .views import getAsignanCarreraNamespk
 
 urlpatterns = [
     path('materias', MateriasView.as_view()),
@@ -20,4 +21,5 @@ urlpatterns = [
     path('asignan-allpk/<pk>', getAsignanpk),
     path('materiaXcarrera/<id>', getMateriasXCarrera),
     path('asignanC-allpk/<pk>',getAsignanCarrerapk),
+    path('asignanCNames-allpk/<pk>',getAsignanCarreraNamespk),
 ]

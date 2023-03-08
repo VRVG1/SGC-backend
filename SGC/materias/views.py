@@ -433,3 +433,37 @@ def getAsignanCarrerapk(request, pk):
             aux = {'ID_Asignan':i.ID_Asignan,'Semestre':i.Semestre,'Grupo':i.Grupo,'Hora':i.Hora,'Dia':i.Dia,'Aula':i.Aula,'ID_Usuario':i.ID_Usuario.PK,'Nombre_Materia':i.ID_Materia.Nombre_Materia,'Carrera':i.ID_Materia.Carrera.Nombre_Carrera}
             lista.append(aux)
         return Response(lista, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getAsignanCarreraNamespk(request, pk):
+    '''
+    Vista que permite obtener todos los asignan de un docente (con la carrera con nombres y pk's)
+    (ADMIN Y DOCENTE)
+    '''
+
+    try:
+        usuario = Usuarios.objects.get(PK=pk)
+        asign = Asignan.objects.filter(ID_Usuario=usuario)
+    except Asignan.DoesNotExist:
+        return Response({'Error': 'No hay asignan'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        for i in asign:
+            aux = {
+                'ID_Asignan':i.ID_Asignan,
+                'ID_Carrera':i.ID_Materia.Carrera.ID_Carrera,
+                'ID_Materia':i.ID_Materia.Clave_reticula,
+                'ID_Usuario':i.ID_Usuario.PK,
+                'Nombre_Materia':i.ID_Materia.Nombre_Materia,
+                'Carrera':i.ID_Materia.Carrera.Nombre_Carrera,
+                'Semestre':i.Semestre,
+                'Grupo':i.Grupo,
+                'Hora':i.Hora,
+                'Dia':i.Dia,
+                'Aula':i.Aula,
+            }
+            lista.append(aux)
+        return Response(lista, status=status.HTTP_200_OK)
