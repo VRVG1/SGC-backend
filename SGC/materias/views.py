@@ -352,6 +352,10 @@ def borrarAs(request, pkM):
 
     elif request.method == 'DELETE':
         usuario = Usuarios.objects.get(ID_Usuario=asign.ID_Usuario.ID_Usuario)
+        generan = Generan.objects.filter(ID_Asignan=asign)
+        for i in generan:
+            report = Reportes.objects.get(ID_Reporte=i.ID_Reporte.ID_Reporte)
+            report.delete()
         usuario.Permiso = False
         usuario.save()
         asign.delete()

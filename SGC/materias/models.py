@@ -15,7 +15,10 @@ class Carreras(models.Model):
 class Materias(models.Model):
     class Meta:
         db_table = 'Materias'
-    Clave_reticula = models.CharField(max_length=8, null=False, primary_key=True)
+        unique_together = ['Clave_reticula', 'Carrera']
+    
+    pik = models.AutoField(primary_key=True, null=False)
+    Clave_reticula = models.CharField(max_length=8, null=False)
     Carrera = models.ForeignKey(Carreras, on_delete=models.CASCADE)
     Nombre_Materia = models.CharField(max_length=200, null=False, unique=False)
     horas_Teoricas = models.IntegerField(null=False, default=1, validators=[MinValueValidator(1),MaxValueValidator(10)])
