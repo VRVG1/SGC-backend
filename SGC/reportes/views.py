@@ -14,6 +14,7 @@ from materias.models import Asignan
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
 from .tasks import sendMensaje
+from django.db.models import Q
 
 # Create your views here.
 
@@ -27,7 +28,7 @@ class ReportesView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, AdminEspectadorPermission]
 
     serializer_class = ReportesSerializer
-    queryset = Reportes.objects.all()
+    queryset = Reportes.objects.filter(Unidad=False)
 
 
 class GeneranView(generics.ListAPIView):
@@ -84,9 +85,24 @@ class CreateReportesView(APIView):
                     semestre = 'Enero - Junio ' + str(fecha.year)
                 else:
                     semestre = 'Agosto - Diciembre ' + str(fecha.year)
-
-                for i in asignan:
-                    ID_Asignan = Asignan.objects.get(ID_Asignan=i.ID_Asignan)
+                
+                lista = []
+                olds = []
+                for x,i in enumerate(asignan):
+                    if x == 0:
+                        manyAsignan = Asignan.objects.filter(Q(ID_Materia=i.ID_Materia, Semestre=i.Semestre, Grupo=i.Grupo) & ~Q(Hora=i.Hora,Dia=i.Dia,Aula=i.Aula))
+                        if manyAsignan:
+                            for o in manyAsignan:
+                                olds.append(o)
+                        lista.append(i)
+                    else:
+                        if i not in olds:
+                            manyAsignan = Asignan.objects.filter(Q(ID_Materia=i.ID_Materia, Semestre=i.Semestre, Grupo=i.Grupo) & ~Q(Hora=i.Hora,Dia=i.Dia,Aula=i.Aula))
+                            if manyAsignan:
+                                for o in manyAsignan:
+                                    olds.append(o)
+                            lista.append(i)
+                for i in lista:
                     generate = Generan(
                         Estatus=None, Periodo=semestre, Fecha_Entrega=fecha, ID_Asignan=i, ID_Reporte=ID_Reporte, Reprobados=0)
                     generate.save()
@@ -234,9 +250,25 @@ def EnviarGeneran(request, pk):
             else:
                 semestre = 'Agosto - Diciembre ' + str(fecha.year)
 
-            for x in asignan:
+            lista = []
+            olds = []
+            for x,i in enumerate(asignan):
+                if x == 0:
+                    manyAsignan = Asignan.objects.filter(Q(ID_Materia=i.ID_Materia, Semestre=i.Semestre, Grupo=i.Grupo) & ~Q(Hora=i.Hora,Dia=i.Dia,Aula=i.Aula))
+                    if manyAsignan:
+                        for o in manyAsignan:
+                            olds.append(o)
+                    lista.append(i)
+                else:
+                    if i not in olds:
+                        manyAsignan = Asignan.objects.filter(Q(ID_Materia=i.ID_Materia, Semestre=i.Semestre, Grupo=i.Grupo) & ~Q(Hora=i.Hora,Dia=i.Dia,Aula=i.Aula))
+                        if manyAsignan:
+                            for o in manyAsignan:
+                                olds.append(o)
+                        lista.append(i)
+            for i in lista:
                 generate = Generan(
-                    Estatus=None, Periodo=semestre, Fecha_Entrega=fecha, ID_Asignan=x, ID_Reporte=reporte, Reprobados=0)
+                    Estatus=None, Periodo=semestre, Fecha_Entrega=fecha, ID_Asignan=i, ID_Reporte=reporte, Reprobados=0)
                 generate.save()
 
             return Response({'Success': 'Generan creado'}, status=status.HTTP_201_CREATED)
