@@ -459,7 +459,7 @@ def getAsignanCarreraNamespk(request, pk):
             aux = {
                 'ID_Asignan':i.ID_Asignan,
                 'ID_Carrera':i.ID_Materia.Carrera.ID_Carrera,
-                'ID_Materia':i.ID_Materia.Clave_reticula,
+                'ID_Materia':i.ID_Materia.pik,
                 'ID_Usuario':i.ID_Usuario.PK,
                 'Nombre_Materia':i.ID_Materia.Nombre_Materia,
                 'Carrera':i.ID_Materia.Carrera.Nombre_Carrera,
