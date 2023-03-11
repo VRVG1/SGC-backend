@@ -254,7 +254,7 @@ def GetGeneranUser(request):
     '''
     try:
         usuario = Usuarios.objects.get(ID_Usuario=request.user)
-        generan = Generan.objects.filter(ID_Asignan__ID_Usuario=usuario)
+        generan = Generan.objects.filter(ID_Asignan__ID_Usuario=usuario, ID_Reporte__Unidad=False)
     except Generan.DoesNotExist:
         return Response({'Error': 'No hay registros'}, status=status.HTTP_404_NOT_FOUND)
 
