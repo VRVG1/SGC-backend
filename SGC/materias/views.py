@@ -667,11 +667,38 @@ def p2MateriasCreditos(request, query):
     '''
     try:
         materias = Materias.objects.filter(creditos=query)
-        print(materias)
     except Materias.DoesNotExist:
-        return Response({'Error':'No existen asignan'})
+        return Response({'Error':'No existen materias'})
     
     if request.method == 'GET':
         serializer = MateriaSerializer(materias, many=True)
         return Response(serializer.data,status=status.HTTP_200_OK)
-        
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasUnidades(request, query):
+    '''
+    View que pertenece al filtro: Materias que tienen cierto numero de unidades.
+    (ADMIN)
+    '''
+    try:
+        materias = Materias.objects.filter(unidades=query)
+    except Materias.DoesNotExist:
+        return Response({'Error':'No existen materias'})
+    
+    if request.method == 'GET':
+        serializer = MateriaSerializer(materias, many=True)
+        return Response(serializer.data,status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2HorasTeoCarrera(request, query):
+    pass
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2HorasPraCarrera(request, query):
+    pass
