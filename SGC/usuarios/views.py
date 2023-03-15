@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from persoAuth.permissions import AdminDocentePermission, AdminEspectadorPermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorDocentePermission
 from rest_framework.authentication import TokenAuthentication
 from .tasks import ForgotPass
+from materias.models import Asignan, Materias, Carreras
 # Create your views here.
 
 
@@ -306,3 +307,86 @@ def actualizarPropiosDatos(request, pk):
             return Response(usuario_serializer.data, status=status.HTTP_202_ACCEPTED)
         except:
             return Response(usuario_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+'''
+**************************************************************************************
+* Aqui empiezan las views de los filtros necesarios y reportes                       *
+* de la (parte 2).                                                                   *
+*                                                                                    *
+* La parte 2 es de Greñas                                                            *
+**************************************************************************************
+'''
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosCarrera(request,query):
+    '''
+    Filtro que corresponde al filtro: Maestros por carrera (tal vez tenga que moverlo a usuarios)
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(ID_Materia__Carrera__Nombre_Carrera__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            usuario = Usuarios.objects.get(ID_Usuario=i.ID_Usuario.ID_Usuario)
+            lista.append(usuario)
+        usuarios = set(lista) 
+    except Usuarios.DoesNotExist:
+        return Response({'Error':'Usuario no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        lista = []
+        serializer = list(usuarios)
+        for i in serializer:
+            aux = {
+                'PK':i.PK,
+                'ID_Usuario':{'username':i.ID_Usuario.username,'password':i.ID_Usuario.password},
+                'Nombre_Usuario':i.Nombre_Usuario,
+                'Tipo_Usuario':i.Tipo_Usuario,
+                'CorreoE':i.CorreoE,
+                'Permiso':i.Permiso
+            }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosHora(request, query):
+    '''
+    View que pertenece al filtro: Maestros(as) que laboran en cierta hora.
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(Hora__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            usuario = Usuarios.objects.get(ID_Usuario=i.ID_Usuario.ID_Usuario)
+            lista.append(usuario)
+        usuarios = set(lista)
+    except Usuarios.DoesNotExist:
+        return Response({'Error':'Usuario no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        lista = []
+        serializer = list(usuarios)
+        for i in serializer:
+            aux = {
+                'PK':i.PK,
+                'ID_Usuario':{'username':i.ID_Usuario.username,'password':i.ID_Usuario.password},
+                'Nombre_Usuario':i.Nombre_Usuario,
+                'Tipo_Usuario':i.Tipo_Usuario,
+                'CorreoE':i.CorreoE,
+                'Permiso':i.Permiso
+            }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
