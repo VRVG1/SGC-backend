@@ -144,7 +144,7 @@ class AsignarMateriaView(APIView):
                 for x in reportes:
                     if x.Unidad != True:
                         generate = Generan(
-                            Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=periodo, Reprobados=0)
+                            Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=periodo, Reprobados=0, Fecha_Entrega=x.Fecha_Entrega)
                         generate.save()
 
                 crearReportesUnidad(asignan,usuario)
@@ -471,3 +471,207 @@ def getAsignanCarreraNamespk(request, pk):
             }
             lista.append(aux)
         return Response(lista, status=status.HTTP_200_OK)
+    
+'''
+**************************************************************************************
+* Aqui empiezan las views de los filtros necesarios y reportes                       *
+* de la (parte 2).                                                                   *
+*                                                                                    *
+* La parte 2 es de Greñas                                                            *
+**************************************************************************************
+'''
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasCarrera(request, query):
+    '''
+    View que corresponde al filtro: Materias por carrera.
+    (ADMIN)
+    '''
+    try:
+        materias = Materias.objects.filter(Carrera__Nombre_Carrera__startswith=query)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materias no existen'},status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = MateriaSerializer(materias, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasMaestro(request, query):
+    '''
+    Vista para el filtro: Materias que imparte cada maestro, así como la carrera a la que
+    pertenece la materia.
+
+    (Puede que tenga que anexar lo ultimo, habrá que ver).
+    (ADMIN)
+    '''
+    try: 
+        asignan = Asignan.objects.filter(ID_Usuario__Nombre_Usuario__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia)
+        materias = set(lista)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        lista = []
+        serializer = list(materias)
+        for i in serializer:
+            aux = {
+                'pik':i.pik,
+                'Clave_reticula':i.Clave_reticula,
+                'Carrera':i.Carrera.ID_Carrera,
+                'Nombre_Materia':i.Nombre_Materia,
+                'horas_Teoricas':i.horas_Teoricas,
+                'horas_Practicas':i.horas_Practicas,
+                'creditos':i.creditos,
+                'unidades':i.unidades
+            }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasHora(request, query):
+    '''
+    Vista que pertenece al filtro: Materias que se imparten en cierta hora.
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(Hora__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existen'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia)
+        materias = set(lista)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        serializer = list(materias)
+        for i in serializer:
+            aux = {
+                'pik':i.pik,
+                'Clave_reticula':i.Clave_reticula,
+                'Carrera':i.Carrera.ID_Carrera,
+                'Nombre_Materia':i.Nombre_Materia,
+                'horas_Teoricas':i.horas_Teoricas,
+                'horas_Practicas':i.horas_Practicas,
+                'creditos':i.creditos,
+                'unidades':i.unidades
+            }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasAula(request, query):
+    '''
+    Vista que pertenece al filtro: Materias que se imparten en cierta aula.
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(Aula__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existen'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia)
+        materias = set(lista)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        serializer = list(materias)
+        for i in serializer:
+            aux = {
+                'pik':i.pik,
+                'Clave_reticula':i.Clave_reticula,
+                'Carrera':i.Carrera.ID_Carrera,
+                'Nombre_Materia':i.Nombre_Materia,
+                'horas_Teoricas':i.horas_Teoricas,
+                'horas_Practicas':i.horas_Practicas,
+                'creditos':i.creditos,
+                'unidades':i.unidades
+            }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasGrupo(request, query):
+    '''
+    Vista que pertenece al filtro: Materias que se imparten en cierto grupo.
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(Grupo__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existen'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia)
+        materias = set(lista)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        serializer = list(materias)
+        for i in serializer:
+            aux = {
+                'pik':i.pik,
+                'Clave_reticula':i.Clave_reticula,
+                'Carrera':i.Carrera.ID_Carrera,
+                'Nombre_Materia':i.Nombre_Materia,
+                'horas_Teoricas':i.horas_Teoricas,
+                'horas_Practicas':i.horas_Practicas,
+                'creditos':i.creditos,
+                'unidades':i.unidades
+            }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasCreditos(request, query):
+    '''
+    View que pertenece al filtro: Materias que tienen cierta cantidad de créditos.
+    (ADMIN)
+    '''
+    try:
+        materias = Materias.objects.filter(creditos=query)
+        print(materias)
+    except Materias.DoesNotExist:
+        return Response({'Error':'No existen asignan'})
+    
+    if request.method == 'GET':
+        serializer = MateriaSerializer(materias, many=True)
+        return Response(serializer.data,status=status.HTTP_200_OK)
+        
