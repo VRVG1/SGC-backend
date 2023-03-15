@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import UsuarioView, CreateUsuarioView, borrar, actualizar, get, CambiarPass, getInfoUser, updateLoginInfo, OlvidoPass, actualizarPropiosDatos
-
+from .views import p2MaestrosCarrera, p2MaestrosHora
 urlpatterns = [
     path('users', UsuarioView.as_view()),
     path('create_user', CreateUsuarioView.as_view()),
@@ -12,4 +12,7 @@ urlpatterns = [
     path('update-login/<pk>', updateLoginInfo),
     path('forgotPass', OlvidoPass),
     path('update-Ownuser/<pk>', actualizarPropiosDatos),
+
+    path('p2MaeXC/<query>',p2MaestrosCarrera),
+    path('p2MaeXH/<query>',p2MaestrosHora),
 ]
