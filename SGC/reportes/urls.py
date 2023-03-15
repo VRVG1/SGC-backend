@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import ReportesView, CreateReportesView, GeneranView, CrearGeneran, borrarReporte, updateReporte, CreateAlojanView, alojanFromView, OnlySaveReportesView, EnviarGeneran, GetGeneranUser
-from .views import GetReporte, AlojanView, AdminSendMail, IniciarNuevoSem, borrarEntrega, getResportesUnidad, entregarUnidad
+from .views import GetReporte, AlojanView, AdminSendMail, IniciarNuevoSem, borrarEntrega, getResportesUnidad, entregarUnidad, getReportesUnidadAdmin
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
     path('create-reporte', CreateReportesView.as_view()),
@@ -20,4 +20,5 @@ urlpatterns = [
     path('delete-Alojan/<pk>', borrarEntrega),
     path('getRUnidades/<pk>',getResportesUnidad),
     path('entregaUnidad/<pk>',entregarUnidad),
+    path('getRUnidadesAdmin',getReportesUnidadAdmin),
 ]
