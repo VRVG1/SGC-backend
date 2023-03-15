@@ -551,3 +551,91 @@ def entregarUnidad(request, pk):
             return Response(generan_serializer.data, status=status.HTTP_200_OK)
         else:
             return Response(generan_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getReportesUnidadAdmin(request):
+    '''
+    Vista que permite obtener los reportes de unidad de todos los maestros
+    (separados como victor pidió)
+    (ADMIN)
+    '''
+
+    try:
+        usuarios = Usuarios.objects.filter(Tipo_Usuario='Docente')
+    except Usuarios.DoesNotExist:
+        return Response({'Error':'No hay usuarios'},status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        try: 
+            RepUnidades = Generan.objects.filter(ID_Reporte__Unidad=True)
+
+            lista = []
+            listagen = []
+            for u in usuarios:
+                oldAs = None
+                for x,i in enumerate(RepUnidades):
+                    if x == 0:
+                        try:
+                            asignacion = Asignan.objects.get(ID_Usuario=u, ID_Asignan=i.ID_Asignan.ID_Asignan)
+                            aux = {
+                                'Nombre_Usuario':u.Nombre_Usuario
+                            }
+                            aux.update({
+                                'Nombre_Materia':asignacion.ID_Materia.Nombre_Materia,
+                                'Semestre':asignacion.Semestre,
+                                'Grupo':asignacion.Grupo,
+                                'Aula':asignacion.Aula,
+                                'Unidades':asignacion.ID_Materia.unidades
+                            })
+                            listagen.append({
+                                    'ID_Generacion':i.ID_Generacion,
+                                    'Fecha_Entrega':i.Fecha_Entrega,
+                                    'Reprobados':i.Reprobados,
+                                    'Unidad':i.Unidad
+                            })
+                            aux.update({'Generan':listagen})
+                            oldAs = i.ID_Asignan.ID_Asignan
+                        except Asignan.DoesNotExist:
+                            pass
+
+                    elif i.ID_Asignan.ID_Asignan != oldAs:
+                        try:
+                            asignacion = Asignan.objects.get(ID_Usuario=u, ID_Asignan=i.ID_Asignan.ID_Asignan)
+                            listagen = []
+                            lista.append(aux)
+                            aux = {
+                                'Nombre_Usuario':u.Nombre_Usuario
+                            }
+                            aux.update({
+                                'Nombre_Materia':asignacion.ID_Materia.Nombre_Materia,
+                                'Semestre':asignacion.Semestre,
+                                'Grupo':asignacion.Grupo,
+                                'Aula':asignacion.Aula,
+                                'Unidades':asignacion.ID_Materia.unidades
+                            })
+                            listagen.append({
+                                    'ID_Generacion':i.ID_Generacion,
+                                    'Fecha_Entrega':i.Fecha_Entrega,
+                                    'Reprobados':i.Reprobados,
+                                    'Unidad':i.Unidad
+                            })
+                            aux.update({'Generan':listagen})
+                            oldAs = i.ID_Asignan.ID_Asignan
+                        except Asignan.DoesNotExist:
+                            pass
+                    else:
+                        if oldAs != None:
+                            listagen.append({
+                                'ID_Generacion':i.ID_Generacion,
+                                'Fecha_Entrega':i.Fecha_Entrega,
+                                'Reprobados':i.Reprobados,
+                                'Unidad':i.Unidad
+                            })
+                            aux.update({'Generan':listagen})
+                listagen = []
+            lista.append(aux)
+            return Response(lista,status=status.HTTP_200_OK)
+        except Generan.DoesNotExist:
+            return Response({'Error':'No hay generan'},status=status.HTTP_404_NOT_FOUND)
