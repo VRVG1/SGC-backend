@@ -28,7 +28,7 @@ class Generan(models.Model):
     ID_Asignan = models.ForeignKey(Asignan, on_delete=models.CASCADE)
     ID_Reporte = models.ForeignKey(Reportes, on_delete=models.CASCADE)
     Periodo = models.CharField(max_length=24,null=False,default='X - X XXXX')
-    Reprobados = models.IntegerField(null=False, validators=[MinValueValidator(0),MaxValueValidator(100)])
+    Reprobados = models.IntegerField(null=False, validators=[MinValueValidator(-1),MaxValueValidator(100)])
     Unidad = models.IntegerField(null=False,validators=[MinValueValidator(-1),MaxValueValidator(6)], default=0)
 
 
