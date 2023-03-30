@@ -691,14 +691,32 @@ def p2MateriasUnidades(request, query):
         serializer = MateriaSerializer(materias, many=True)
         return Response(serializer.data,status=status.HTTP_200_OK)
     
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated, AdminDocentePermission])
-def p2HorasTeoCarrera(request, query):
-    pass
+def p2HorasTeoCarrera(query):
+    '''
+    Metodo de apoyo para obtener las horas totales teoricas de una carrera
+    '''
+    carreras = Carreras.objects.filter(Nombre_Carrera__startswith=query)
 
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated, AdminDocentePermission])
-def p2HorasPraCarrera(request, query):
-    pass
+    for i in carreras:
+        materias = Materias.objects.filter(Carrera=i)
+
+    horasTeo = 0
+    for i in materias:
+        horasTeo = horasTeo + i.horas_Teoricas
+    
+    return horasTeo
+
+def p2HorasPraCarrera(query):
+    '''
+    Metodo de apoyo para obtener las horas totales practicas de una carrera
+    '''
+    carreras = Carreras.objects.filter(Nombre_Carrera__startswith=query)
+
+    for i in carreras:
+        materias = Materias.objects.filter(Carrera=i)
+
+    horasPra = 0
+    for i in materias:
+        horasPra = horasPra + i.horas_Practicas
+    
+    return horasPra
