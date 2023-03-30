@@ -639,3 +639,76 @@ def getReportesUnidadAdmin(request):
             return Response(lista,status=status.HTTP_200_OK)
         except Generan.DoesNotExist:
             return Response({'Error':'No hay generan'},status=status.HTTP_404_NOT_FOUND)
+
+'''
+**************************************************************************************
+* Aqui empiezan las views de los filtros necesarios y reportes                       *
+* de la (parte 2).                                                                   *
+*                                                                                    *
+* La parte 2 es de Greñas                                                            *
+**************************************************************************************
+'''
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosPuntual(request, query):
+
+    try:
+        reporte = Reportes.objects.get(Nombre_Reporte=query)
+    except Reportes.DoesNotExist:
+        return Response({'Error':'Reporte no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+
+    if request.method == 'GET':
+        generan = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo')
+
+        aux = []
+        for i in generan:
+            aux.append(i.ID_Asignan.ID_Usuario)
+        aux = set(aux)
+        
+        lista = []
+        for i in list(aux):
+            aux = {
+                    'PK':i.PK,
+                    'ID_Usuario':{'username':i.ID_Usuario.username,'password':i.ID_Usuario.password},
+                    'Nombre_Usuario':i.Nombre_Usuario,
+                    'Tipo_Usuario':i.Tipo_Usuario,
+                    'CorreoE':i.CorreoE,
+                    'Permiso':i.Permiso
+                }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosTarde(request, query):
+
+    try:
+        reporte = Reportes.objects.get(Nombre_Reporte=query)
+    except Reportes.DoesNotExist:
+        return Response({'Error':'Reporte no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+
+    if request.method == 'GET':
+        generan = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde')
+
+        aux = []
+        for i in generan:
+            aux.append(i.ID_Asignan.ID_Usuario)
+        aux = set(aux)
+        
+        lista = []
+        for i in list(aux):
+            aux = {
+                    'PK':i.PK,
+                    'ID_Usuario':{'username':i.ID_Usuario.username,'password':i.ID_Usuario.password},
+                    'Nombre_Usuario':i.Nombre_Usuario,
+                    'Tipo_Usuario':i.Tipo_Usuario,
+                    'CorreoE':i.CorreoE,
+                    'Permiso':i.Permiso
+                }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
