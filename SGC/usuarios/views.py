@@ -10,6 +10,7 @@ from persoAuth.permissions import AdminDocentePermission, AdminEspectadorPermiss
 from rest_framework.authentication import TokenAuthentication
 from .tasks import ForgotPass
 from materias.models import Asignan, Materias, Carreras
+from reportes.models import Reportes, Generan
 # Create your views here.
 
 
@@ -389,4 +390,49 @@ def p2MaestrosHora(request, query):
                 'Permiso':i.Permiso
             }
             lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosIndice(request):
+    '''
+    View que pertenece al filtro: Maestros(as) con el mas alto/bajo indice de reprobacion.
+    (ADMIN)
+    '''
+
+    usuarios = Usuarios.objects.filter(Tipo_Usuario='Docente')
+
+    auxL = []
+    aux = {}
+    for i in usuarios:
+        auxL = []
+        generan = Generan.objects.filter(ID_Asignan__ID_Usuario = i, ID_Reporte__Unidad = True)
+        auxL.append(generan)
+        aux.update({i.Nombre_Usuario:auxL})
+
+    lista = []
+    for x in aux.keys():
+        rep = 0
+        for i in aux[x]:
+            tam = len(i)
+            for o in i:
+                if o.Reprobados >= 0:
+                    rep = rep + o.Reprobados
+                else:
+                    tam = tam - 1
+            rep = rep / tam
+            mai = Usuarios.objects.get(Nombre_Usuario=x)
+            auxU = {
+                'PK':mai.PK,
+                'ID_Usuario':{'username':mai.ID_Usuario.username,'password':mai.ID_Usuario.password},
+                'Nombre_Usuario':f'{mai.Nombre_Usuario} - {str(round(rep))}%',
+                'Tipo_Usuario':mai.Tipo_Usuario,
+                'CorreoE':mai.CorreoE,
+                'Permiso':mai.Permiso,
+                'Indice':round(rep)
+            }
+            lista.append(auxU)
+
+    if request.method == 'GET':
         return Response(lista,status=status.HTTP_200_OK)
