@@ -12,3 +12,6 @@ db.*
 
 # migrations
 **/migrations
+
+# static
+**/static
