@@ -2,7 +2,7 @@ from django.urls import path
 from .views import MateriasView, CreateMateriasView, borrarM, borrarAs, CreateCarreraView, AsignarMateriaView, CarrerasView, borrarC
 from .views import updateM, updateC, AsignanView, getAsignan, getAsignanEspecific, AdminGetAsignan, getAsignanpk, getMateriasXCarrera, getAsignanCarrerapk
 from .views import getAsignanCarreraNamespk, p2MateriasCarrera, p2MateriasMaestro, p2MateriasHora, p2MateriasAula, p2MateriasGrupo, p2MateriasCreditos, p2MateriasUnidades
-
+from .views import p2MateriasCarreraPDF, p2MateriasMaestroPDF, p2MateriasHoraPDF, p2MateriasAulaPDF, p2MateriasGrupoPDF, p2MateriasCreditosPDF, p2MateriasUnidadPDF, p2AllCarrerasPDF
 urlpatterns = [
     path('materias', MateriasView.as_view()),
     path('create_materia', CreateMateriasView.as_view()),
@@ -30,4 +30,12 @@ urlpatterns = [
     path('p2MatXG/<query>',p2MateriasGrupo),
     path('p2MatXCred/<query>',p2MateriasCreditos),
     path('p2MatXU/<query>',p2MateriasUnidades),
+    path('p2MatXCPDF/<query>',p2MateriasCarreraPDF),
+    path('p2MatXMPDF/<query>',p2MateriasMaestroPDF),
+    path('p2MatXHPDF/<query>',p2MateriasHoraPDF),
+    path('p2MatXAPDF/<query>',p2MateriasAulaPDF),
+    path('p2MatXGPDF/<query>',p2MateriasGrupoPDF),
+    path('p2MatXCredPDF/<query>',p2MateriasCreditosPDF),
+    path('p2MatXUPDF/<query>',p2MateriasUnidadPDF),
+    path('p2AllCarrerasPDF',p2AllCarrerasPDF),
 ]
