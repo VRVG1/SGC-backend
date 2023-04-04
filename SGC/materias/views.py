@@ -13,6 +13,9 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from reportes.models import Generan, Reportes
 from persoAuth.permissions import OnlyAdminPermission, AdminDocentePermission, AdminEspectadorDocentePermission, AdminEspectadorPermission
+from django.http import FileResponse
+import io
+from fpdf import FPDF
 
 # Create your views here.
 
@@ -720,3 +723,737 @@ def p2HorasPraCarrera(query):
         horasPra = horasPra + i.horas_Practicas
     
     return horasPra
+
+titulo = ''
+
+class PDF(FPDF):
+    def header(self):
+        # Header ************************************************
+        global titulo
+        self.set_font("helvetica", 'B',size=12)
+        self.image("./static/tecnm.png", 10, 10, 45, 20, "") # Carga la foto del tecnm
+        self.set_left_margin(55) # Margen para separar la imagen del texto centrado
+        self.image("./static/itcg.png", 185, 10, 20, 20, "") # Carga la foto del itcg
+        self.set_right_margin(55) # Margen para separar la imagen del texto centrado
+        self.cell(w=0,txt='Instituto Tecnológico de Ciudad Guzman',border=0,ln=2,align='C')
+        self.cell(txt=' ',border=0,ln=2)
+        self.set_font("helvetica", size=12)
+        self.multi_cell(w=0,txt='Sistema para la gestión del curso "SGC"\n',border=0,ln=2,align='C')
+
+        self.multi_cell(w=0,txt=f'Reporte de: {titulo}',border=0,ln=2,align='C')
+        self.set_left_margin(10) # MARGEN REAL
+        self.set_right_margin(10)
+        # Header ************************************************
+
+    def footer(self):
+        # Footer ************************************************
+        # -15 representa 1.5cm del fondo de la pagina:
+        self.set_y(-15)
+        self.set_font("helvetica", "I", 8)
+        # Poner el numero de pagina y fecha:
+        hoy = date.today()
+        fecha = hoy.strftime('%d/%m/%Y')
+        self.multi_cell(0, 10, f"Reporte recuperado el: {fecha}. Pagina {self.page_no()}/{{nb}}", align="C")
+        # Footer ************************************************
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasCarreraPDF(request, query):
+    '''
+    View que corresponde al PDF: Materias por carrera.
+    (ADMIN)
+    '''
+    try:
+        materias = Materias.objects.filter(Carrera__Nombre_Carrera__startswith=query)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materias no existen'},status=status.HTTP_404_NOT_FOUND)
+
+    if materias:
+        buffer = io.BytesIO()
+
+        global titulo
+        titulo = 'Materias por carrera\n'
+
+        pdf = PDF(format='Letter')
+        pdf.add_page()
+        pdf.set_font("helvetica",size=12)
+        pdf.set_title('Materias por carrera')
+
+        aux = set()
+        for i in materias:
+            aux.add(i.Carrera.Nombre_Carrera)
+        
+        # pdf.multi_cell(w=0,txt=f'Reporte de: Materias por carrera\n',border=0,ln=2,align='C')
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+        
+        pdf.cell(txt=f'De su busqueda "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
+
+        txt = ''
+        for i in aux:
+            txt = txt + f'- {i}\n'
+        
+        le = len(txt)
+        
+        pdf.multi_cell(w=0,txt=txt[:le-1],border=0,ln=2)
+        pdf.set_draw_color(192, 194, 196)
+
+        data = []
+        for a in aux:
+            data.append([a])
+            data.append(['Clave reticula','Materia','Unidades','Creditos','Horas Teoricas','Horas Practicas'])
+            for i in materias:
+                if i.Carrera.Nombre_Carrera == a:
+                    data.append([i.Carrera.ID_Carrera,i.Nombre_Materia,str(i.unidades),str(i.creditos),str(i.horas_Teoricas),str(i.horas_Practicas)])
+            data.append(['Total de horas teoricas','Total de horas practicas'])
+            data.append([str(p2HorasTeoCarrera(a)),str(p2HorasPraCarrera(a))])
+
+        tamL = pdf.font_size_pt * 0.7
+        tamC = pdf.epw
+        f = False
+        for i in data:
+            if len(i) > 1:
+                pdf.set_font('Helvetica',size=12)
+                for u in i:
+                    if 'Total de horas teoricas' in i:
+                        f = True
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,align='C')
+                    elif f == True:
+                        pdf.set_font('Helvetica','B',size=12)
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,align='C')
+                    else:
+                        pdf.cell(w=tamC/6,h=tamL,txt=u,border=1)
+                pdf.ln(tamL)
+            else:
+                f = False
+                pdf.set_font('Helvetica','B',size=12)
+                pdf.ln(5)
+                for u in i:
+                    pdf.cell(w=0,h=tamL,txt=u,border=1,ln=2,align='C')
+
+        pdf.output(buffer)
+
+        buffer.seek(0)
+
+        if request.method == 'GET':
+            return FileResponse(buffer, filename='Materias.pdf', as_attachment=False)
+    else:
+        if request.method == 'GET':
+            return Response({'Error','No hay información para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
+        
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasMaestroPDF(request, query):
+    '''
+    Vista para el PDF: Materias que imparte cada maestro, así como la carrera a la que
+    pertenece la materia.
+
+    (Puede que tenga que anexar lo ultimo, habrá que ver).
+    (ADMIN)
+    '''
+    try: 
+        asignan = Asignan.objects.filter(ID_Usuario__Nombre_Usuario__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia)
+        materias = set(lista)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    buffer = io.BytesIO()
+
+    global titulo
+    titulo = 'Materias que imparte cada maestro\n'
+
+    pdf = PDF(format='Letter')
+    pdf.add_page()
+    pdf.set_font("helvetica",size=12)
+    pdf.set_title('Materias que imparte cada maestro')
+
+    # pdf.multi_cell(w=0,txt=f'Reporte de: Materias que imparte cada maestro\n',border=0,ln=2,align='C')
+    pdf.set_left_margin(10) # MARGEN REAL
+    pdf.set_right_margin(10)
+
+    pdf.cell(txt=f'De su busqueda: "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
+
+    txt = ''
+    carreras = []
+    maestros = set()
+    for i in asignan:
+        maestros.add(i.ID_Usuario.Nombre_Usuario)
+        carreras.append(i.ID_Materia.Carrera.Nombre_Carrera)
+
+    for i in maestros:
+        txt = txt + f'- {i}\n'
+
+    le = len(txt)
+
+    pdf.multi_cell(w=0,txt=txt[:le-1],border=0,ln=2,align='L')
+
+    pdf.set_draw_color(192, 194, 196)
+
+    data = []
+    oldC = ''
+    oldM = []
+    for m in maestros:
+        data.append([m])
+        asign = Asignan.objects.filter(ID_Usuario__Nombre_Usuario = m).order_by('ID_Materia__Carrera')
+        for x,i in enumerate(asign):
+            if x == 0:
+                data.append([i.ID_Materia.Carrera.Nombre_Carrera])
+                data.append(['Materia','Unidades','Creditos','Hrs. Teoricas','Hrs. Practicas'])
+                data.append([i.ID_Materia.Nombre_Materia,str(i.ID_Materia.unidades),str(i.ID_Materia.creditos),str(i.ID_Materia.horas_Teoricas),str(i.ID_Materia.horas_Practicas)])
+                oldC = i.ID_Materia.Carrera.Nombre_Carrera
+                oldM.append(i.ID_Materia.Nombre_Materia)
+            else:
+                if oldC == i.ID_Materia.Carrera.Nombre_Carrera:
+                    if i.ID_Materia.Nombre_Materia not in oldM:
+                        data.append([i.ID_Materia.Nombre_Materia,str(i.ID_Materia.unidades),str(i.ID_Materia.creditos),str(i.ID_Materia.horas_Teoricas),str(i.ID_Materia.horas_Practicas)])
+                        oldM.append(i.ID_Materia.Nombre_Materia)
+                else:
+                    data.append([i.ID_Materia.Carrera.Nombre_Carrera])
+                    data.append(['Materia','Unidades','Creditos','Hrs. Teoricas','Hrs. Practicas'])
+                    data.append([i.ID_Materia.Nombre_Materia,str(i.ID_Materia.unidades),str(i.ID_Materia.creditos),str(i.ID_Materia.horas_Teoricas),str(i.ID_Materia.horas_Practicas)])
+                    oldC = i.ID_Materia.Carrera.Nombre_Carrera
+                    oldM.append(i.ID_Materia.Nombre_Materia)
+        oldM = []
+    
+    tamL = pdf.font_size_pt * 0.7
+    tamC = pdf.epw
+
+    for i in data:
+        if len(i) > 1:
+            for u in i:
+                pdf.set_font('Helvetica',size=12)
+                pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0)
+            pdf.ln(tamL)
+        else:
+            if i[0] in maestros:
+                pdf.ln(tamL)
+                pdf.set_font('Helvetica','B',size=12)
+                pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+            else:
+                pdf.set_font('Helvetica','B',size=12)
+                pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+
+    pdf.output(buffer)
+
+    buffer.seek(0)
+    
+    if request.method == 'GET':
+            return FileResponse(buffer, filename='Materias.pdf', as_attachment=False)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasHoraPDF(request, query):
+    '''
+    Vista que pertenece al filtro: Materias que se imparten en cierta hora.
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(Hora=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existen'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia.Nombre_Materia)
+        materias = list(set(lista))
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    buffer = io.BytesIO()
+    
+    global titulo
+    titulo = 'Materias que se imparten en cierta hora\n'
+
+    pdf = PDF(format='Letter')
+    pdf.add_page()
+    pdf.set_font("helvetica",size=12)
+    pdf.set_title('Materias que se imparten en cierta hora')
+
+    # pdf.multi_cell(w=0,txt=f'Reporte de: Materias que se imparten en cierta hora\n',border=0,ln=2,align='C')
+
+    pdf.set_left_margin(55) # MARGEN REAL
+    pdf.set_right_margin(55)
+
+    pdf.multi_cell(w=0,txt=f'Las siguientes materias se imparten durante: {query}\n',border=0,ln=1,align='C')
+    
+    pdf.set_left_margin(10) # MARGEN REAL
+    pdf.set_right_margin(10)
+
+    pdf.set_draw_color(192, 194, 196)
+
+    data = []
+    for i in asignan:
+        data.append([i.ID_Materia.Nombre_Materia])
+        data.append(['Semestre','Grupo','Dia','Aula'])
+        data.append([i.Semestre,i.Grupo,i.Dia,i.Aula])
+        data.append(['Maestro(a)'])
+        data.append([i.ID_Usuario.Nombre_Usuario])
+
+    tamL = pdf.font_size_pt * 0.7
+    tamC = pdf.epw
+    m = False
+
+    for i in data:
+        if len(i) > 1:
+            pdf.set_font('helvetica',size=12)
+            for u in i:
+                pdf.cell(w=tamC/4,h=tamL,txt=f'{u}',border=1,ln=0,align='L')
+            pdf.ln(tamL)
+        if i[0] in materias:
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+        if m:
+            pdf.set_font('helvetica',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+            m = False
+            pdf.ln(tamL)
+        if i[0] == 'Maestro(a)':
+            m = True
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+
+
+    pdf.output(buffer)
+
+    buffer.seek(0)
+
+    if request.method == 'GET':
+        return FileResponse(buffer,filename='Materias.pdf',as_attachment=False)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasAulaPDF(request, query):
+    '''
+    Vista que pertenece al filtro: Materias que se imparten en cierta aula.
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(Aula__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existen'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia.Nombre_Materia)
+        materias = set(lista)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+
+    buffer = io.BytesIO()
+    
+    global titulo
+    titulo = 'Materias que se imparten en cierta aula\n'
+
+    pdf = PDF(format='Letter')
+    pdf.add_page()
+    pdf.set_font("helvetica",size=12)
+    pdf.set_title('Materias que se imparten en cierta aula')
+
+    # pdf.multi_cell(w=0,txt=f'Reporte de: Materias que se imparten en cierta hora\n',border=0,ln=2,align='C')
+
+    pdf.set_left_margin(55) # MARGEN REAL
+    pdf.set_right_margin(55)
+
+    pdf.multi_cell(w=0,txt=f'Las siguientes materias se imparten en el aula: {query}\n',border=0,ln=1,align='C')
+    
+    pdf.set_left_margin(10) # MARGEN REAL
+    pdf.set_right_margin(10)
+
+    pdf.set_draw_color(192, 194, 196)
+
+    data = []
+    for i in asignan:
+        data.append([i.ID_Materia.Nombre_Materia])
+        data.append(['Semestre','Grupo','Dia','Hora'])
+        data.append([i.Semestre,i.Grupo,i.Dia,i.Hora])
+        data.append(['Maestro(a)'])
+        data.append([i.ID_Usuario.Nombre_Usuario])
+
+    tamL = pdf.font_size_pt * 0.7
+    tamC = pdf.epw
+    m = False
+
+    for i in data:
+        if len(i) > 1:
+            pdf.set_font('helvetica',size=12)
+            for u in i:
+                pdf.cell(w=tamC/4,h=tamL,txt=f'{u}',border=1,ln=0,align='L')
+            pdf.ln(tamL)
+        if i[0] in materias:
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+        if m:
+            pdf.set_font('helvetica',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+            m = False
+            pdf.ln(tamL)
+        if i[0] == 'Maestro(a)':
+            m = True
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+
+    pdf.output(buffer)
+
+    buffer.seek(0)
+
+    if request.method == 'GET':
+        return FileResponse(buffer,filename='Materias.pdf',as_attachment=False)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasGrupoPDF(request, query):
+    '''
+    Vista que pertenece al filtro: Materias que se imparten en cierto grupo.
+    (ADMIN)
+    '''
+    try:
+        asignan = Asignan.objects.filter(Grupo__startswith=query)
+    except Asignan.DoesNotExist:
+        return Response({'Error':'Asignan no existen'},status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        lista = []
+        for i in asignan:
+            materia = Materias.objects.get(pik=i.ID_Materia.pik)
+            lista.append(materia.Nombre_Materia)
+        materias = set(lista)
+    except Materias.DoesNotExist:
+        return Response({'Error':'Materia no existe'},status=status.HTTP_404_NOT_FOUND)
+
+    buffer = io.BytesIO()
+    
+    global titulo
+    titulo = 'Materias que se imparten en cierto grupo\n'
+
+    pdf = PDF(format='Letter')
+    pdf.add_page()
+    pdf.set_font("helvetica",size=12)
+    pdf.set_title('Materias que se imparten en cierto grupo')
+
+    # pdf.multi_cell(w=0,txt=f'Reporte de: Materias que se imparten en cierta hora\n',border=0,ln=2,align='C')
+
+    pdf.set_left_margin(55) # MARGEN REAL
+    pdf.set_right_margin(55)
+
+    pdf.multi_cell(w=0,txt=f'Las siguientes materias se imparten en el grupo: {query}\n',border=0,ln=1,align='C')
+    
+    pdf.set_left_margin(10) # MARGEN REAL
+    pdf.set_right_margin(10)
+
+    pdf.set_draw_color(192, 194, 196)
+
+    data = []
+    for i in asignan:
+        data.append([i.ID_Materia.Nombre_Materia])
+        data.append(['Semestre','Aula','Dia','Hora'])
+        data.append([i.Semestre,i.Aula,i.Dia,i.Hora])
+        data.append(['Maestro(a)'])
+        data.append([i.ID_Usuario.Nombre_Usuario])
+
+    tamL = pdf.font_size_pt * 0.7
+    tamC = pdf.epw
+    m = False
+
+    for i in data:
+        if len(i) > 1:
+            pdf.set_font('helvetica',size=12)
+            for u in i:
+                pdf.cell(w=tamC/4,h=tamL,txt=f'{u}',border=1,ln=0,align='L')
+            pdf.ln(tamL)
+        if i[0] in materias:
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+        if m:
+            pdf.set_font('helvetica',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+            m = False
+            pdf.ln(tamL)
+        if i[0] == 'Maestro(a)':
+            m = True
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+
+    pdf.output(buffer)
+
+    buffer.seek(0)
+
+    if request.method == 'GET':
+        return FileResponse(buffer,filename='Materias.pdf',as_attachment=False)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasCreditosPDF(request, query):
+    '''
+    View que pertenece al filtro: Materias que tienen cierta cantidad de créditos.
+    (ADMIN)
+    '''
+    try:
+        materias = Materias.objects.filter(creditos=query)
+    except Materias.DoesNotExist:
+        return Response({'Error':'No existen materias'})
+    
+    nombres = []
+    for i in materias:
+        nombres.append(i.Nombre_Materia)
+
+    buffer = io.BytesIO()
+    
+    global titulo
+    titulo = 'Materias que tienen cierta cantidad de creditos\n'
+
+    pdf = PDF(format='Letter')
+    pdf.add_page()
+    pdf.set_font("helvetica",size=12)
+    pdf.set_title('Materias que tienen cierta cantidad de creditos')
+
+    pdf.set_left_margin(55) # MARGEN REAL
+    pdf.set_right_margin(55)
+
+    if int(query) > 1:
+        pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} creditos\n',border=0,ln=1,align='C')
+    else:
+        pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} credito\n',border=0,ln=1,align='C')
+    
+    pdf.set_left_margin(10) # MARGEN REAL
+    pdf.set_right_margin(10)
+
+    pdf.set_draw_color(192, 194, 196)
+
+    data = []
+    for i in materias:
+        data.append([i.Nombre_Materia])
+        data.append(['Clave reticula','Hrs. Teoricas','Hrs. Practicas','Unidades'])
+        data.append([i.Clave_reticula,i.horas_Teoricas,i.horas_Practicas,i.unidades])
+        data.append(['Carrera'])
+        data.append([i.Carrera.Nombre_Carrera])
+
+    tamL = pdf.font_size_pt * 0.7
+    tamC = pdf.epw
+    c = False
+
+    for i in data:
+        if len(i) > 1:
+            pdf.set_font('helvetica',size=12)
+            for u in i:
+                pdf.cell(w=tamC/4,h=tamL,txt=f'{u}',border=1,ln=0,align='L')
+            pdf.ln(tamL)
+        if i[0] in nombres:
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+        if c:
+            pdf.set_font('helvetica',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+            c = False
+            pdf.ln(tamL)
+        if i[0] == 'Carrera':
+            c = True
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+
+    pdf.output(buffer)
+
+    buffer.seek(0)
+
+    if request.method == 'GET':
+        return FileResponse(buffer,filename='Materias.pdf',as_attachment=False)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MateriasUnidadPDF(request, query):
+    '''
+    View que pertenece al filtro: Materias que tienen un cierto número de unidades.
+    (ADMIN)
+    '''
+    try:
+        materias = Materias.objects.filter(creditos=query)
+    except Materias.DoesNotExist:
+        return Response({'Error':'No existen materias'})
+    
+    nombres = []
+    for i in materias:
+        nombres.append(i.Nombre_Materia)
+
+    buffer = io.BytesIO()
+    
+    global titulo
+    titulo = 'Materias que tienen cierto número de unidades\n'
+
+    pdf = PDF(format='Letter')
+    pdf.add_page()
+    pdf.set_font("helvetica",size=12)
+    pdf.set_title('Materias que tienen cierto número de unidades')
+
+    pdf.set_left_margin(55) # MARGEN REAL
+    pdf.set_right_margin(55)
+
+    if int(query) > 1:
+        pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} unidades\n',border=0,ln=1,align='C')
+    else:
+        pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} unidad\n',border=0,ln=1,align='C')
+        
+
+    pdf.set_left_margin(10) # MARGEN REAL
+    pdf.set_right_margin(10)
+
+    pdf.set_draw_color(192, 194, 196)
+
+    data = []
+    for i in materias:
+        data.append([i.Nombre_Materia])
+        data.append(['Clave reticula','Hrs. Teoricas','Hrs. Practicas','Creditos'])
+        data.append([i.Clave_reticula,i.horas_Teoricas,i.horas_Practicas,i.creditos])
+        data.append(['Carrera'])
+        data.append([i.Carrera.Nombre_Carrera])
+
+    tamL = pdf.font_size_pt * 0.7
+    tamC = pdf.epw
+    c = False
+
+    for i in data:
+        if len(i) > 1:
+            pdf.set_font('helvetica',size=12)
+            for u in i:
+                pdf.cell(w=tamC/4,h=tamL,txt=f'{u}',border=1,ln=0,align='L')
+            pdf.ln(tamL)
+        if i[0] in nombres:
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+        if c:
+            pdf.set_font('helvetica',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+            c = False
+            pdf.ln(tamL)
+        if i[0] == 'Carrera':
+            c = True
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+
+    pdf.output(buffer)
+
+    buffer.seek(0)
+
+    if request.method == 'GET':
+        return FileResponse(buffer,filename='Materias.pdf',as_attachment=False)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2AllCarrerasPDF(request):
+    '''
+    View para el PDF de: Lista de las diferentes carreras que se tienen registradas.
+    (ADMIN)
+    '''
+    try:
+        carrerasA = Carreras.objects.all()
+    except Carreras.DoesNotExist:
+        return Response({'Error':'No hay carreras'})
+    
+    buffer = io.BytesIO()
+    
+    global titulo
+    titulo = 'Listado de todas las carreras registradas\n'
+
+    pdf = PDF(format='Letter')
+    pdf.add_page()
+    pdf.set_font("helvetica",size=12)
+    pdf.set_title('Listado de todas las carreras registradas')
+
+    pdf.set_left_margin(55) # MARGEN REAL
+    pdf.set_right_margin(55)
+
+    pdf.multi_cell(w=0,txt=f'A continuación se presentan todas las carreras registradas',border=0,ln=1,align='C')
+
+    pdf.set_left_margin(10) # MARGEN REAL
+    pdf.set_right_margin(10)
+
+    pdf.set_draw_color(192, 194, 196)
+    
+    asignan = Asignan.objects.all()
+    
+    maestros = set()
+    for i in asignan:
+        maestros.add(i.ID_Usuario.Nombre_Usuario)
+    
+    carreras = set()
+    for i in carrerasA:
+        carreras.add(i.Nombre_Carrera)
+
+    data = []
+    for i in carrerasA:
+        data.append([i.Nombre_Carrera])
+        data.append(['Clave'])
+        data.append([i.ID_Carrera])
+        data.append(['Total de horas teoricas','Total de horas practicas'])
+        data.append([p2HorasTeoCarrera(i.Nombre_Carrera),p2HorasPraCarrera(i.Nombre_Carrera)])
+        data.append(['Algunos maestros de la carrera'])
+        auxMae = set(Asignan.objects.filter(ID_Materia__Carrera = i).values_list('ID_Usuario__Nombre_Usuario','ID_Usuario__CorreoE'))
+        data.append(['Nombre','Correo electronico'])
+        if len(auxMae) >= 5:
+            auxMae = list(auxMae)
+            for n in (range(5)):
+                data.append(auxMae[n])
+        else:
+            for a in auxMae:
+                data.append(a)
+
+    tamL = pdf.font_size_pt * 0.7
+    tamC = pdf.epw
+    h = False
+    m = False
+
+    for i in data:
+        if len(i) > 1:
+            for u in i:
+                if u == 'Total de horas teoricas' or u == 'Total de horas practicas':
+                    h = True
+                    pdf.set_font('helvetica','B',size=12)
+                    pdf.cell(w=tamC/2,h=tamL,txt=f'{u}',border=1,ln=0,align='C')
+                elif h == True:
+                    pdf.set_font('helvetica',size=12)
+                    pdf.cell(w=tamC/2,h=tamL,txt=f'{u}',border=1,ln=0,align='C')
+                elif m:
+                    pdf.set_font('helvetica',size=12)
+                    pdf.cell(w=tamC/2,h=tamL,txt=f'{u}',border=1,ln=0,align='C')
+            pdf.ln(tamL)
+        elif i[0] in carreras:
+            m = False
+            pdf.ln(tamL)
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=2,align='C')
+        elif i[0] == 'Clave':
+            pdf.set_font('helvetica',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=1,align='C')
+        elif i[0] == 'Algunos maestros de la carrera':
+            h = False
+            m = True
+            pdf.set_font('helvetica','B',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=1,align='C')
+        else:
+            pdf.set_font('helvetica',size=12)
+            pdf.cell(w=0,h=tamL,txt=f'{i[0]}',border=1,ln=1,align='C')
+
+    pdf.output(buffer)
+
+    buffer.seek(0)
+
+    if request.method == 'GET':
+        return FileResponse(buffer,filename='Materias.pdf',as_attachment=False)
