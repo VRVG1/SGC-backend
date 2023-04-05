@@ -757,8 +757,8 @@ class PDF(FPDF):
         # Footer ************************************************
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated, AdminDocentePermission])
+# @authentication_classes([TokenAuthentication])
+# @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MateriasCarreraPDF(request, query):
     '''
     View que corresponde al PDF: Materias por carrera.
@@ -802,16 +802,23 @@ def p2MateriasCarreraPDF(request, query):
         data = []
         for a in aux:
             data.append([a])
-            data.append(['Clave reticula','Materia','Unidades','Creditos','Horas Teoricas','Horas Practicas'])
+            data.append(['Materia','Clave reticula','Unidades','Creditos','Horas Teoricas','Horas Practicas'])
             for i in materias:
                 if i.Carrera.Nombre_Carrera == a:
-                    data.append([i.Carrera.ID_Carrera,i.Nombre_Materia,str(i.unidades),str(i.creditos),str(i.horas_Teoricas),str(i.horas_Practicas)])
+                    data.append([i.Nombre_Materia,i.Carrera.ID_Carrera,str(i.unidades),str(i.creditos),str(i.horas_Teoricas),str(i.horas_Practicas)])
             data.append(['Total de horas teoricas','Total de horas practicas'])
             data.append([str(p2HorasTeoCarrera(a)),str(p2HorasPraCarrera(a))])
 
         tamL = pdf.font_size_pt * 0.7
         tamC = pdf.epw
         f = False
+        tam = False
+        cy = 0
+        ex = 0
+        cx = 0
+        ey = 0
+        sal = 0
+        factor_Mul = 0
         for i in data:
             if len(i) > 1:
                 pdf.set_font('Helvetica',size=12)
@@ -819,14 +826,38 @@ def p2MateriasCarreraPDF(request, query):
                     if 'Total de horas teoricas' in i:
                         f = True
                         pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,align='C')
+                    elif len(u) > 23:
+                        cx = pdf.get_x()
+                        cy = pdf.get_y()
+                        tam = True
+                        ax = u.replace(' ','\n')
+                        sal = ax.count('\n')
+                        factor_Mul = sal + 1
+                        pdf.multi_cell(w=tamC/6,txt=ax,border=1,ln=0,align='L')
+                        ex = pdf.get_x()
+                        ey = pdf.get_y()
+                        pdf.set_x(ex)
+                    elif tam:
+                        cx = pdf.get_x()
+                        pdf.set_xy(cx,cy)
+                        pdf.multi_cell(w=tamC/6,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
+                        ex = cx + (tamC/6)
+                        pdf.set_x(ex)
                     elif f == True:
                         pdf.set_font('Helvetica','B',size=12)
                         pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,align='C')
                     else:
                         pdf.cell(w=tamC/6,h=tamL,txt=u,border=1)
-                pdf.ln(tamL)
+                if tam:
+                    ey = cy + (tamL*(factor_Mul/1.99))
+                    pdf.set_y(ey)
+                    tam = False
+                else:
+                    tam = False
+                    pdf.ln(tamL)
             else:
                 f = False
+                tam = False
                 pdf.set_font('Helvetica','B',size=12)
                 pdf.ln(5)
                 for u in i:
@@ -843,8 +874,8 @@ def p2MateriasCarreraPDF(request, query):
             return Response({'Error','No hay información para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
         
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated, AdminDocentePermission])
+# @authentication_classes([TokenAuthentication])
+# @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MateriasMaestroPDF(request, query):
     '''
     Vista para el PDF: Materias que imparte cada maestro, así como la carrera a la que
@@ -927,14 +958,45 @@ def p2MateriasMaestroPDF(request, query):
     
     tamL = pdf.font_size_pt * 0.7
     tamC = pdf.epw
-
+    tam = False
+    cy = 0
+    ex = 0
+    cx = 0
+    ey = 0
+    sal = 0
+    factor_Mul = 0
     for i in data:
         if len(i) > 1:
             for u in i:
-                pdf.set_font('Helvetica',size=12)
-                pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0)
-            pdf.ln(tamL)
+                if len(u) > 23:
+                    cx = pdf.get_x()
+                    cy = pdf.get_y()
+                    tam = True
+                    ax = u.replace(' ','\n')
+                    sal = ax.count('\n')
+                    factor_Mul = sal + 1
+                    pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
+                    ex = pdf.get_x()
+                    ey = pdf.get_y()
+                    pdf.set_x(ex)
+                elif tam:
+                    cx = pdf.get_x()
+                    pdf.set_xy(cx,cy)
+                    pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
+                    ex = cx + (tamC/5)
+                    pdf.set_x(ex)
+                else:
+                    pdf.set_font('Helvetica',size=12)
+                    pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0)
+            if tam:
+                ey = cy + (tamL*(factor_Mul/1.99))
+                pdf.set_y(ey)
+                tam = False
+            else:
+                tam = False
+                pdf.ln(tamL)
         else:
+            tam = False
             if i[0] in maestros:
                 pdf.ln(tamL)
                 pdf.set_font('Helvetica','B',size=12)
@@ -951,8 +1013,8 @@ def p2MateriasMaestroPDF(request, query):
             return FileResponse(buffer, filename='Materias.pdf', as_attachment=False)
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated, AdminDocentePermission])
+# @authentication_classes([TokenAuthentication])
+# @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MateriasHoraPDF(request, query):
     '''
     Vista que pertenece al filtro: Materias que se imparten en cierta hora.
@@ -1034,8 +1096,8 @@ def p2MateriasHoraPDF(request, query):
         return FileResponse(buffer,filename='Materias.pdf',as_attachment=False)
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated, AdminDocentePermission])
+# @authentication_classes([TokenAuthentication])
+# @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MateriasAulaPDF(request, query):
     '''
     Vista que pertenece al filtro: Materias que se imparten en cierta aula.
