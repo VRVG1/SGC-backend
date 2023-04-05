@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import ReportesView, CreateReportesView, GeneranView, CrearGeneran, borrarReporte, updateReporte, CreateAlojanView, alojanFromView, OnlySaveReportesView, EnviarGeneran, GetGeneranUser
 from .views import GetReporte, AlojanView, AdminSendMail, IniciarNuevoSem, borrarEntrega, getResportesUnidad, entregarUnidad, getReportesUnidadAdmin
-from .views import p2MaestrosPuntual, p2MaestrosTarde
+from .views import p2MaestrosPuntual, p2MaestrosTarde, p2MaestrosPuntualPDF, p2MaestrosTardePDF
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -26,4 +26,6 @@ urlpatterns = [
     
     path('p2MaeXPunt/<query>',p2MaestrosPuntual),
     path('p2MaeXTard/<query>',p2MaestrosTarde),
+    path('p2MaeXPuntPDF/<query>',p2MaestrosPuntualPDF),
+    path('PDF/<query>',p2MaestrosTardePDF),
 ]
