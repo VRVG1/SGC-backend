@@ -698,9 +698,12 @@ def p2MaestrosIndiceAltoPDF(request):
                     rep = rep + o.Reprobados
                 else:
                     tam = tam - 1
-            rep = rep / tam
-            mai = Usuarios.objects.get(Nombre_Usuario=x)
-            nombresIndices[f'{mai.Nombre_Usuario}'] = round(rep)
+            try:
+                rep = rep / tam
+                mai = Usuarios.objects.get(Nombre_Usuario=x)
+                nombresIndices[f'{mai.Nombre_Usuario}'] = round(rep)
+            except ZeroDivisionError:
+                pass
     
     if usuarios:
         buffer = io.BytesIO()
@@ -746,7 +749,7 @@ def p2MaestrosIndiceAltoPDF(request):
                 pdf.set_font('helvetica',size=12)
                 for u in i:
                     if isinstance(u,int):
-                        pdf.cell(w=tamC/3,h=tamL,txt=str(u),border=1,ln=0,align='L')
+                        pdf.cell(w=tamC/3,h=tamL,txt=f'{str(u)}%',border=1,ln=0,align='L')
                         pdf.cell(w=tamC/3,h=tamL,txt=correo,border=1,ln=0,align='L')
                     else:
                         pdf.cell(w=tamC/3,h=tamL,txt=u,border=1,ln=0,align='L')
@@ -778,6 +781,7 @@ def p2MaestrosIndiceAltoPDF(request):
 
         img_buf = io.BytesIO()
         plt.savefig(img_buf, dpi=200)
+        plt.close()
 
         pdf.image(img_buf, w=pdf.epw)
 
@@ -820,9 +824,12 @@ def p2MaestrosIndiceBajoPDF(request):
                     rep = rep + o.Reprobados
                 else:
                     tam = tam - 1
-            rep = rep / tam
-            mai = Usuarios.objects.get(Nombre_Usuario=x)
-            nombresIndices[f'{mai.Nombre_Usuario}'] = round(rep)
+            try:
+                rep = rep / tam
+                mai = Usuarios.objects.get(Nombre_Usuario=x)
+                nombresIndices[f'{mai.Nombre_Usuario}'] = round(rep)
+            except ZeroDivisionError:
+                pass
     
     if usuarios:
         buffer = io.BytesIO()
@@ -868,7 +875,7 @@ def p2MaestrosIndiceBajoPDF(request):
                 pdf.set_font('helvetica',size=12)
                 for u in i:
                     if isinstance(u,int):
-                        pdf.cell(w=tamC/3,h=tamL,txt=str(u),border=1,ln=0,align='L')
+                        pdf.cell(w=tamC/3,h=tamL,txt=f'{str(u)}%',border=1,ln=0,align='L')
                         pdf.cell(w=tamC/3,h=tamL,txt=correo,border=1,ln=0,align='L')
                     else:
                         pdf.cell(w=tamC/3,h=tamL,txt=u,border=1,ln=0,align='L')
@@ -900,6 +907,7 @@ def p2MaestrosIndiceBajoPDF(request):
 
         img_buf = io.BytesIO()
         plt.savefig(img_buf, dpi=200)
+        plt.close()
 
         pdf.image(img_buf, w=pdf.epw)
 
@@ -912,3 +920,101 @@ def p2MaestrosIndiceBajoPDF(request):
     else:
         if request.method == 'GET':
             return Response({'Error','No hay información para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET'])
+# @authentication_classes([TokenAuthentication])
+# @permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2AllMaestrosPDF(request):
+    '''
+    View que corresponde al PDF: Lista de todos los(las) maestros(as).
+    (ADMIN)
+    '''
+
+    try:
+        names = []
+        usuarios = Usuarios.objects.filter(Tipo_Usuario='Docente')
+
+        for i in usuarios:
+            names.append(i.Nombre_Usuario)
+        
+    except Usuarios.DoesNotExist:
+        return Response({'Error':'No hay usuarios'},status=status.HTTP_404_NOT_FOUND)
+    
+    if usuarios:
+        
+        buffer = io.BytesIO()
+
+        global titulo
+        titulo = 'Lista de todos los(las) maestros(as).\n'
+
+        pdf = PDF(format='Letter')
+        pdf.add_page()
+        pdf.set_font("helvetica",size=12)
+        pdf.set_title('Lista de todos los(las) maestros(as).')
+
+        pdf.set_left_margin(55) # MARGEN REAL
+        pdf.set_right_margin(55)
+
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los(las) maestros(as)\n',border=0,ln=1,align='C')
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        pdf.set_draw_color(192, 194, 196)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        data = []
+        auxC = set()
+        data.append(['Maestros(as)'])
+        for u in usuarios:
+            data.append(['Nombre','Correo electronico'])
+            data.append([u.Nombre_Usuario,u.CorreoE])
+            data.append(['Carrera(s) donde imparte'])
+            carreras = Asignan.objects.filter(ID_Usuario__Nombre_Usuario=u.Nombre_Usuario)
+            for i in carreras:
+                auxC.add(i.ID_Materia.Carrera.Nombre_Carrera)
+            data.append([auxC])
+            auxC = set()
+
+        tamL = pdf.font_size_pt * 0.7
+        tamC = pdf.epw
+
+        for i in data:
+            if len(i) > 1:
+                if len(i) == 2:
+                    for u in i:
+                        if u == 'Nombre' or u == 'Correo electronico':
+                            pdf.set_font('helvetica','B',size=12)
+                            pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
+                        else:
+                            pdf.set_font('helvetica',size=12)
+                            pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='L')
+                    pdf.ln(tamL)
+                else:
+                    for u in i:
+                        pdf.set_font('helvetica',size=12)
+                        pdf.cell(w=0,h=tamL,txt=u,border=1,ln=0,align='L')
+                    pdf.ln(tamL)
+            else:
+                if i[0] == 'Maestros(as)' or i[0] == 'Carrera(s) donde imparte':
+                    pdf.set_font('helvetica','B',size=12)
+                    pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+                else:
+                    for u in i:
+                        for x in u:
+                            pdf.set_font('helvetica',size=12)
+                            pdf.cell(w=0,h=tamL,txt=x,border=1,ln=0,align='C')
+                        pdf.ln(tamL)
+                    pdf.ln(tamL)
+
+        pdf.output(buffer)
+        buffer.seek(0)
+
+        if request.method == 'GET':
+            return FileResponse(buffer,filename='Maestros.pdf',as_attachment=False)
+
+    else:
+        if request.method == 'GET':
+            return Response({'Error':'No hay suficiente informacion para el pdf'},status=status.HTTP_204_NO_CONTENT)
