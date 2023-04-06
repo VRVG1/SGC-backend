@@ -27,5 +27,5 @@ urlpatterns = [
     path('p2MaeXPunt/<query>',p2MaestrosPuntual),
     path('p2MaeXTard/<query>',p2MaestrosTarde),
     path('p2MaeXPuntPDF/<query>',p2MaestrosPuntualPDF),
-    path('PDF/<query>',p2MaestrosTardePDF),
+    path('p2MaeXTardPDF/<query>',p2MaestrosTardePDF),
 ]
