@@ -811,12 +811,13 @@ def p2MaestrosPuntualPDF(request, query):
     data.append([f'Entregaron a tiempo: {query}'])
     for i in lista:
         data.append([i['Nombre_Usuario'],i['CorreoE']])
-        data.append(['Materia','Semestre','Entregado'])
-        genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Semestre','Fecha_Entrega')
+        data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
+        genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
         for u in genera:
             for o in u:
-                laux.append(str(o))
-        data.append(laux)
+                    laux.append(str(o))
+            data.append(laux)
+            laux = []
 
     tamL = pdf.font_size_pt * 0.7
     tamC = pdf.epw
@@ -832,6 +833,7 @@ def p2MaestrosPuntualPDF(request, query):
             for u in i:
                 pdf.set_font('helvetica',size=12)
                 if len(i) == 2:
+                    pdf.set_font('helvetica','B',size=12)
                     pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
                 elif len(u) > 23:
                     cx = pdf.get_x()
@@ -840,18 +842,18 @@ def p2MaestrosPuntualPDF(request, query):
                     ax = u.replace(' ','\n')
                     sal = ax.count('\n')
                     factor_Mul = sal + 1
-                    pdf.multi_cell(w=tamC/3,txt=ax,border=1,ln=0,align='L')
+                    pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
                     ex = pdf.get_x()
                     ey = pdf.get_y()
                     pdf.set_x(ex)
                 elif tam:
                     cx = pdf.get_x()
                     pdf.set_xy(cx,cy)
-                    pdf.multi_cell(w=tamC/3,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
-                    ex = cx + (tamC/3)
+                    pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
+                    ex = cx + (tamC/5)
                     pdf.set_x(ex)
                 else:
-                    pdf.cell(w=tamC/3,h=tamL,txt=u,border=1,ln=0,align='L')
+                    pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0,align='L')
             if tam:
                 ey = cy + (tamL*(factor_Mul/1.99))
                 pdf.set_y(ey)
@@ -876,12 +878,13 @@ def p2MaestrosPuntualPDF(request, query):
     bar_labels=['A tiempo','Tarde'] #valores X
     matplotlib.use('agg')
     plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
-    plt.xlabel('Entregas')
+    plt.xlabel('Entregas') 
     plt.ylabel('Cantidad de incidencia')
     plt.title(f"Grafica de entregas de: {query}")
 
     img_buf = io.BytesIO()
     plt.savefig(img_buf, dpi=200)
+    plt.close()
 
     pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
     pdf.ln(tamL)
@@ -956,11 +959,11 @@ def p2MaestrosTardePDF(request, query):
     data.append([f'Entregaron tarde: {query}'])
     for i in lista:
         data.append([i['Nombre_Usuario'],i['CorreoE']])
-        data.append(['Materia','Semestre','Grupo','Dia','Entregado'])
-        genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Semestre','ID_Asignan__Grupo','ID_Asignan__Dia','Fecha_Entrega')
+        data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
+        genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
         for u in genera:
             for o in u:
-                laux.append(str(o))
+                    laux.append(str(o))
             data.append(laux)
             laux = []
 
@@ -978,6 +981,7 @@ def p2MaestrosTardePDF(request, query):
             for u in i:
                 pdf.set_font('helvetica',size=12)
                 if len(i) == 2:
+                    pdf.set_font('helvetica','B',size=12)
                     pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
                 elif len(u) > 23:
                     cx = pdf.get_x()
@@ -1011,7 +1015,6 @@ def p2MaestrosTardePDF(request, query):
             pdf.set_font('helvetica','B',size=12)
             pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
             ey = pdf.get_y()
-    print(data)
 
     tardeC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde').count()
     atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
@@ -1029,6 +1032,7 @@ def p2MaestrosTardePDF(request, query):
 
     img_buf = io.BytesIO()
     plt.savefig(img_buf, dpi=200)
+    plt.close()
 
     pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
     pdf.ln(tamL)
