@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import UsuarioView, CreateUsuarioView, borrar, actualizar, get, CambiarPass, getInfoUser, updateLoginInfo, OlvidoPass, actualizarPropiosDatos
 from .views import p2MaestrosCarrera, p2MaestrosHora, p2MaestrosIndice
-from .views import p2MaestrosCarreraPDF, p2MaestrosHoraPDF, p2MaestrosIndiceAltoPDF, p2MaestrosIndiceBajoPDF
+from .views import p2MaestrosCarreraPDF, p2MaestrosHoraPDF, p2MaestrosIndiceAltoPDF, p2MaestrosIndiceBajoPDF, p2AllMaestrosPDF
 urlpatterns = [
     path('users', UsuarioView.as_view()),
     path('create_user', CreateUsuarioView.as_view()),
@@ -21,4 +21,5 @@ urlpatterns = [
     path('p2MaeXHPDF/<query>',p2MaestrosHoraPDF),
     path('p2MaeXIAPDF',p2MaestrosIndiceAltoPDF),
     path('p2MaeXIBPDF',p2MaestrosIndiceBajoPDF),
+    path('p2AllMaePDF',p2AllMaestrosPDF),
 ]
