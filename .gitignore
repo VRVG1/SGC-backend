@@ -12,3 +12,10 @@ db.*
 
 # migrations
 **/migrations
+
+# Local files
+local_requirements.txt
+
+# sensitive data
+**/test/password.k2
+**/test/superuserdata.json
