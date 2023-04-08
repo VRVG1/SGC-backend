@@ -427,18 +427,21 @@ def p2MaestrosIndice(request):
                     rep = rep + o.Reprobados
                 else:
                     tam = tam - 1
-            rep = rep / tam
-            mai = Usuarios.objects.get(Nombre_Usuario=x)
-            auxU = {
-                'PK':mai.PK,
-                'ID_Usuario':{'username':mai.ID_Usuario.username,'password':mai.ID_Usuario.password},
-                'Nombre_Usuario':f'{mai.Nombre_Usuario} - {str(round(rep))}%',
-                'Tipo_Usuario':mai.Tipo_Usuario,
-                'CorreoE':mai.CorreoE,
-                'Permiso':mai.Permiso,
-                'Indice':round(rep)
-            }
-            lista.append(auxU)
+            try:
+                rep = rep / tam
+                mai = Usuarios.objects.get(Nombre_Usuario=x)
+                auxU = {
+                    'PK':mai.PK,
+                    'ID_Usuario':{'username':mai.ID_Usuario.username,'password':mai.ID_Usuario.password},
+                    'Nombre_Usuario':f'{mai.Nombre_Usuario} - {str(round(rep))}%',
+                    'Tipo_Usuario':mai.Tipo_Usuario,
+                    'CorreoE':mai.CorreoE,
+                    'Permiso':mai.Permiso,
+                    'Indice':round(rep)
+                }
+                lista.append(auxU)
+            except ZeroDivisionError:
+                pass
 
     if request.method == 'GET':
         return Response(lista,status=status.HTTP_200_OK)
