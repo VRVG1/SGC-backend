@@ -16,6 +16,7 @@ class Reportes(models.Model):
     Descripcion = models.TextField(max_length=1000, null=True, blank=True)
     Opcional = models.BooleanField(default=False)
     Unidad = models.BooleanField(default=False)
+    Calificaciones = models.BooleanField(default=False)
 
 
 class Generan(models.Model):
