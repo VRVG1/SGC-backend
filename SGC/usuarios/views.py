@@ -1,5 +1,6 @@
 from datetime import date
 import io
+from operator import itemgetter
 from django.http import FileResponse
 from rest_framework.response import Response
 from rest_framework import generics, status
@@ -401,7 +402,7 @@ def p2MaestrosHora(request, query):
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
-def p2MaestrosIndice(request):
+def p2MaestrosIndiceAlto(request):
     '''
     View que pertenece al filtro: Maestros(as) con el mas alto/bajo indice de reprobacion.
     (ADMIN)
@@ -444,7 +445,57 @@ def p2MaestrosIndice(request):
                 pass
 
     if request.method == 'GET':
-        return Response(lista,status=status.HTTP_200_OK)
+        listaB = sorted(lista, key=itemgetter('Indice'),reverse=True)
+        return Response(listaB,status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosIndiceBajo(request):
+    '''
+    View que pertenece al filtro: Maestros(as) con el mas alto/bajo indice de reprobacion.
+    (ADMIN)
+    '''
+
+    usuarios = Usuarios.objects.filter(Tipo_Usuario='Docente')
+
+    auxL = []
+    aux = {}
+    for i in usuarios:
+        auxL = []
+        generan = Generan.objects.filter(ID_Asignan__ID_Usuario = i, ID_Reporte__Unidad = True)
+        auxL.append(generan)
+        aux.update({i.Nombre_Usuario:auxL})
+
+    lista = []
+    for x in aux.keys():
+        rep = 0
+        for i in aux[x]:
+            tam = len(i)
+            for o in i:
+                if o.Reprobados >= 0:
+                    rep = rep + o.Reprobados
+                else:
+                    tam = tam - 1
+            try:
+                rep = rep / tam
+                mai = Usuarios.objects.get(Nombre_Usuario=x)
+                auxU = {
+                    'PK':mai.PK,
+                    'ID_Usuario':{'username':mai.ID_Usuario.username,'password':mai.ID_Usuario.password},
+                    'Nombre_Usuario':f'{mai.Nombre_Usuario} - {str(round(rep))}%',
+                    'Tipo_Usuario':mai.Tipo_Usuario,
+                    'CorreoE':mai.CorreoE,
+                    'Permiso':mai.Permiso,
+                    'Indice':round(rep)
+                }
+                lista.append(auxU)
+            except ZeroDivisionError:
+                pass
+
+    if request.method == 'GET':
+        listaB = sorted(lista, key=itemgetter('Indice'))
+        return Response(listaB,status=status.HTTP_200_OK)
 
 titulo = ''
 
