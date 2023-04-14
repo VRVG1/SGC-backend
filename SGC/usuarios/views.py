@@ -14,7 +14,7 @@ from persoAuth.permissions import AdminDocentePermission, AdminEspectadorPermiss
 from rest_framework.authentication import TokenAuthentication
 from .tasks import ForgotPass
 from materias.models import Asignan, Materias, Carreras
-from reportes.models import Reportes, Generan
+from reportes.models import Reportes, Generan, Alojan
 from fpdf import FPDF
 import matplotlib.pyplot as plt
 import matplotlib
@@ -496,6 +496,63 @@ def p2MaestrosIndiceBajo(request):
     if request.method == 'GET':
         listaB = sorted(lista, key=itemgetter('Indice'))
         return Response(listaB,status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaeNoCalif(request):
+    '''
+    View que corresponde al filtro: Maestros(as) que no han entregado listas de calificaciones
+    (ADMIN)
+    '''
+    try:
+        generan = Generan.objects.filter(ID_Reporte__Calificaciones = True)
+    except Alojan.DoesNotExist:
+        return Response({'Error':'No hay alojan'},status=status.HTTP_404_NOT_FOUND)
+
+    listaN = []
+    if generan:
+        for i in generan:
+            found = False
+            alojan = Alojan.objects.filter(ID_Generacion = i)
+            aux = {}
+            for u in alojan:
+                pdf = str(u.Path_PDF)
+                calif = u.ID_Generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera.replace(' ','_') + '_' + u.ID_Generacion.ID_Asignan.ID_Materia.Nombre_Materia.replace(' ','_') + '_' + str(u.ID_Generacion.ID_Asignan.Semestre) + '_' + u.ID_Generacion.ID_Asignan.Grupo + '_Calificaciones.pdf'
+                barra = pdf.find('/')
+                pdf = pdf[barra+1:]
+                if calif == pdf:
+                    aux = {}
+                    found = True
+                    break
+                else:
+                    aux.update({u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:u.ID_Generacion.ID_Reporte.Nombre_Reporte})
+
+                if found != True:
+                    listaN.append(aux)
+
+        lista = []
+        old = ''
+        for i in listaN:
+            for u in i:
+                if u != old:
+                    mai = Usuarios.objects.get(Nombre_Usuario=u)
+                    reporte = i[u]
+                    old = u
+                    auxU = {
+                            'PK':mai.PK,
+                            'ID_Usuario':{'username':mai.ID_Usuario.username,'password':mai.ID_Usuario.password},
+                            'Nombre_Usuario':f'{mai.Nombre_Usuario} - {reporte}',
+                            'Tipo_Usuario':mai.Tipo_Usuario,
+                            'CorreoE':mai.CorreoE,
+                            'Permiso':mai.Permiso,
+                        }
+                    lista.append(auxU)
+
+        if request.method == 'GET':
+            return Response(lista,status=status.HTTP_200_OK)  
+    else:
+        return Response({'No hay generan'},status=status.HTTP_204_NO_CONTENT)
 
 titulo = ''
 
@@ -530,8 +587,8 @@ class PDF(FPDF):
         # Footer ************************************************
 
 @api_view(['GET'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated, AdminDocentePermission])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MaestrosCarreraPDF(request, query):
     '''
     View que corresponde al PDF: Maestros por carrera.
@@ -613,8 +670,8 @@ def p2MaestrosCarreraPDF(request, query):
             return Response({'Error','No hay información para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated, AdminDocentePermission])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MaestrosHoraPDF(request, query):
     '''
     View que pertenece al filtro: Maestros(as) que laboran en cierta hora.
@@ -724,8 +781,8 @@ def p2MaestrosHoraPDF(request, query):
             return Response({'Error','No hay información para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated, AdminDocentePermission])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MaestrosIndiceAltoPDF(request):
     '''
     View que pertenece al filtro: Maestros(as) con el mas alto/bajo indice de reprobacion.
@@ -850,8 +907,8 @@ def p2MaestrosIndiceAltoPDF(request):
             return Response({'Error','No hay información para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
         
 @api_view(['GET'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated, AdminDocentePermission])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MaestrosIndiceBajoPDF(request):
     '''
     View que pertenece al filtro: Maestros(as) con el mas bajo indice de reprobacion.
@@ -976,8 +1033,8 @@ def p2MaestrosIndiceBajoPDF(request):
             return Response({'Error','No hay información para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated, AdminDocentePermission])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2AllMaestrosPDF(request):
     '''
     View que corresponde al PDF: Lista de todos los(las) maestros(as).
@@ -1072,3 +1129,114 @@ def p2AllMaestrosPDF(request):
     else:
         if request.method == 'GET':
             return Response({'Error':'No hay suficiente informacion para el pdf'},status=status.HTTP_204_NO_CONTENT)
+        
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaeNoCalifPDF(request):
+    '''
+    View que corresponde al pdf: Maestros(as) que no han entregado listas de calificaciones
+    (ADMIN)
+    '''
+    try:
+        generan = Generan.objects.filter(ID_Reporte__Calificaciones = True)
+    except Alojan.DoesNotExist:
+        return Response({'Error':'No hay alojan'},status=status.HTTP_404_NOT_FOUND)
+
+    oldM = ''
+    oldU = ''
+    listaN = []
+    aux = []
+    if generan:
+        materias = set()
+        for i in generan:
+            materias.add(i.ID_Asignan.ID_Materia.Nombre_Materia)
+
+        for o in materias:
+            for i in generan:
+                if i.ID_Asignan.ID_Materia.Nombre_Materia == o:
+                    if oldM != o:
+                        listaN.append(i.ID_Asignan.ID_Materia.Nombre_Materia)
+                        oldM = o
+                    found = False
+                    alojan = Alojan.objects.filter(ID_Generacion = i)
+                    if alojan:
+                        for u in alojan:
+                            pdf = str(u.Path_PDF)
+                            calif = u.ID_Generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera.replace(' ','_') + '_' + u.ID_Generacion.ID_Asignan.ID_Materia.Nombre_Materia.replace(' ','_') + '_' + str(u.ID_Generacion.ID_Asignan.Semestre) + '_' + u.ID_Generacion.ID_Asignan.Grupo + '_Calificaciones.pdf'
+                            barra = pdf.find('/')
+                            pdf = pdf[barra+1:]
+                            if calif == pdf:
+                                aux = []
+                                found = True
+                                listaN.pop()
+                                break
+                            else:
+                                aux.append([u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,u.ID_Generacion.ID_Reporte.Nombre_Reporte])
+                            if found != True:
+                                if oldU != u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:
+                                    listaN.append(aux)
+                                    oldU = u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario
+                            aux = []
+                    else:
+                        aux.append([i.ID_Asignan.ID_Usuario.Nombre_Usuario,i.ID_Reporte.Nombre_Reporte])
+                        listaN.append(aux)
+                        aux = []
+
+        buffer = io.BytesIO()
+
+        global titulo
+        titulo = 'Maestros(as) que no han entregado listas de calificaciones.\n'
+
+        pdf = PDF(format='Letter')
+        pdf.add_page()
+        pdf.set_font("helvetica",size=12)
+        pdf.set_title('Maestros(as) que no han entregado listas de calificaciones')
+
+        pdf.set_left_margin(55) # MARGEN REAL
+        pdf.set_right_margin(55)
+
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los(las) maestros(as) que no han entregado listas de calificaciones\n',border=0,ln=1,align='C')
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        pdf.set_draw_color(192, 194, 196)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        data = []
+        data.append(['Maestros(as) que no han entregado calificaciones'])
+        for i in listaN:
+            if isinstance(i,list):
+                for u in i:
+                    data.append(u)
+            else:
+                data.append([i])
+                data.append(['Maestro(a)','Reporte'])
+
+        tamL = pdf.font_size_pt * 0.7
+        tamC = pdf.epw
+
+        for i in data:
+            if len(i) > 1:
+                for u in i:
+                    if u == 'Maestro(a)' or u == 'Reporte':
+                        pdf.set_font('helvetica','B',size=12)
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='L')
+                    else:
+                        pdf.set_font('helvetica',size=12)
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='L')
+                pdf.ln(tamL)
+            else:
+                pdf.set_font('helvetica','B',size=12)
+                pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+
+        pdf.output(buffer)
+        buffer.seek(0)
+
+        if request.method == 'GET':
+            return FileResponse(buffer, filename='Maestros.pdf',as_attachment=False)  
+    else:
+        return Response({'No hay generan'},status=status.HTTP_204_NO_CONTENT)
