@@ -754,8 +754,8 @@ class PDF(FPDF):
 
 
 @api_view(['GET'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated, AdminDocentePermission])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MaestrosPuntualPDF(request, query):
 
     try:
@@ -778,132 +778,136 @@ def p2MaestrosPuntualPDF(request, query):
             }
         lista.append(aux)
     
-    buffer = io.BytesIO()
+    if generan:
+        buffer = io.BytesIO()
 
-    global titulo
-    titulo = 'Maestros(as) que entregaron puntual sus avances\n'
+        global titulo
+        titulo = 'Maestros(as) que entregaron puntual sus avances\n'
 
-    pdf = PDF(format='Letter')
-    pdf.add_page()
-    pdf.set_font("helvetica",size=12)
-    pdf.set_title('Maestros(as) que entregaron puntual sus avances')
+        pdf = PDF(format='Letter')
+        pdf.add_page()
+        pdf.set_font("helvetica",size=12)
+        pdf.set_title('Maestros(as) que entregaron puntual sus avances')
 
-    pdf.set_left_margin(55) # MARGEN REAL
-    pdf.set_right_margin(55)
+        pdf.set_left_margin(55) # MARGEN REAL
+        pdf.set_right_margin(55)
 
-    # pdf.set_font("helvetica",'B',size=12)
-    pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros que han entregado a tiempo el reporte: ',border=0,ln=1,align='C')
-    pdf.set_font("helvetica",'B',size=12)
-    pdf.multi_cell(w=0,txt=f'{query}',border=0,ln=1,align='C')
-    pdf.set_font("helvetica",size=12)
-    
-    pdf.set_left_margin(10) # MARGEN REAL
-    pdf.set_right_margin(10)
+        # pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros que han entregado a tiempo el reporte: ',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'{query}',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",size=12)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
 
-    pdf.set_draw_color(192, 194, 196)
-    
-    pdf.set_left_margin(10) # MARGEN REAL
-    pdf.set_right_margin(10)
+        pdf.set_draw_color(192, 194, 196)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
 
-    data = []
-    laux = []
-    materia = ''
-    data.append([f'Entregaron a tiempo: {query}'])
-    for i in lista:
-        data.append([i['Nombre_Usuario'],i['CorreoE']])
-        data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
-        genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
-        for u in genera:
-            for o in u:
-                    laux.append(str(o))
-            data.append(laux)
-            laux = []
+        data = []
+        laux = []
+        materia = ''
+        data.append([f'Entregaron a tiempo: {query}'])
+        for i in lista:
+            data.append([i['Nombre_Usuario'],i['CorreoE']])
+            data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
+            genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
+            for u in genera:
+                for o in u:
+                        laux.append(str(o))
+                data.append(laux)
+                laux = []
 
-    tamL = pdf.font_size_pt * 0.7
-    tamC = pdf.epw
-    tam = False
-    cy = 0
-    ex = 0
-    cx = 0
-    ey = 0
-    sal = 0
-    factor_Mul = 0
-    for i in data:
-        if len(i) > 1:
-            for u in i:
-                pdf.set_font('helvetica',size=12)
-                if len(i) == 2:
-                    pdf.set_font('helvetica','B',size=12)
-                    pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
-                elif len(u) > 23:
-                    cx = pdf.get_x()
-                    cy = pdf.get_y()
-                    tam = True
-                    ax = u.replace(' ','\n')
-                    sal = ax.count('\n')
-                    factor_Mul = sal + 1
-                    pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
-                    ex = pdf.get_x()
-                    ey = pdf.get_y()
-                    pdf.set_x(ex)
-                elif tam:
-                    cx = pdf.get_x()
-                    pdf.set_xy(cx,cy)
-                    pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
-                    ex = cx + (tamC/5)
-                    pdf.set_x(ex)
+        tamL = pdf.font_size_pt * 0.7
+        tamC = pdf.epw
+        tam = False
+        cy = 0
+        ex = 0
+        cx = 0
+        ey = 0
+        sal = 0
+        factor_Mul = 0
+        for i in data:
+            if len(i) > 1:
+                for u in i:
+                    pdf.set_font('helvetica',size=12)
+                    if len(i) == 2:
+                        pdf.set_font('helvetica','B',size=12)
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
+                    elif len(u) > 23:
+                        cx = pdf.get_x()
+                        cy = pdf.get_y()
+                        tam = True
+                        ax = u.replace(' ','\n')
+                        sal = ax.count('\n')
+                        factor_Mul = sal + 1
+                        pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
+                        ex = pdf.get_x()
+                        ey = pdf.get_y()
+                        pdf.set_x(ex)
+                    elif tam:
+                        cx = pdf.get_x()
+                        pdf.set_xy(cx,cy)
+                        pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
+                        ex = cx + (tamC/5)
+                        pdf.set_x(ex)
+                    else:
+                        pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0,align='L')
+                if tam:
+                    ey = cy + (tamL*(factor_Mul/1.99))
+                    pdf.set_y(ey)
+                    tam = False
                 else:
-                    pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0,align='L')
-            if tam:
-                ey = cy + (tamL*(factor_Mul/1.99))
-                pdf.set_y(ey)
-                tam = False
+                    tam = False
+                    pdf.ln(tamL)
             else:
                 tam = False
                 pdf.ln(tamL)
+                pdf.set_font('helvetica','B',size=12)
+                pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+                ey = pdf.get_y()
+
+        tardeC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde').count()
+        atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
+
+        pdf.ln(tamL)
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+
+        heights=[atiempoC,tardeC] #valores Y
+        bar_labels=['A tiempo','Tarde'] #valores X
+        matplotlib.use('agg')
+        plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
+        plt.xlabel('Entregas') 
+        plt.ylabel('Cantidad de incidencia')
+        plt.title(f"Grafica de entregas de: {query}")
+
+        img_buf = io.BytesIO()
+        plt.savefig(img_buf, dpi=200)
+        plt.close()
+
+        pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
+        pdf.ln(tamL)
+
+        if tardeC > atiempoC:
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) después de la fecha acordada.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
         else:
-            tam = False
-            pdf.ln(tamL)
-            pdf.set_font('helvetica','B',size=12)
-            pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
-            ey = pdf.get_y()
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) antes o en la fecha acordada, nada mal.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
 
-    tardeC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde').count()
-    atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
+        pdf.output(buffer)
+        img_buf.close()
+        buffer.seek(0)
 
-    pdf.ln(tamL)
-    pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
-
-    heights=[atiempoC,tardeC] #valores Y
-    bar_labels=['A tiempo','Tarde'] #valores X
-    matplotlib.use('agg')
-    plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
-    plt.xlabel('Entregas') 
-    plt.ylabel('Cantidad de incidencia')
-    plt.title(f"Grafica de entregas de: {query}")
-
-    img_buf = io.BytesIO()
-    plt.savefig(img_buf, dpi=200)
-    plt.close()
-
-    pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
-    pdf.ln(tamL)
-
-    if tardeC > atiempoC:
-        pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) después de la fecha acordada.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
+        if request.method == 'GET':
+            return FileResponse(buffer,filename='Avances.pdf',as_attachment=False)
     else:
-        pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) antes o en la fecha acordada, nada mal.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
-
-    pdf.output(buffer)
-    img_buf.close()
-    buffer.seek(0)
-
-    if request.method == 'GET':
-        return FileResponse(buffer,filename='Avances.pdf',as_attachment=False)
+        if request.method == 'GET':
+            return Response({'Error':'No hay suficiente informacion para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated, AdminDocentePermission])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def p2MaestrosTardePDF(request, query):
 
     try:
@@ -926,127 +930,129 @@ def p2MaestrosTardePDF(request, query):
             }
         lista.append(aux)
     
-    buffer = io.BytesIO()
+    if generan:
+        buffer = io.BytesIO()
 
-    global titulo
-    titulo = 'Maestros(as) que se retrasaron en la entrega de los avances\n'
+        global titulo
+        titulo = 'Maestros(as) que se retrasaron en la entrega de los avances\n'
 
-    pdf = PDF(format='Letter')
-    pdf.add_page()
-    pdf.set_font("helvetica",size=12)
-    pdf.set_title('Maestros(as) que se retrasaron en la entrega de los avances')
+        pdf = PDF(format='Letter')
+        pdf.add_page()
+        pdf.set_font("helvetica",size=12)
+        pdf.set_title('Maestros(as) que se retrasaron en la entrega de los avances')
 
-    pdf.set_left_margin(55) # MARGEN REAL
-    pdf.set_right_margin(55)
+        pdf.set_left_margin(55) # MARGEN REAL
+        pdf.set_right_margin(55)
 
-    # pdf.set_font("helvetica",'B',size=12)
-    pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros que han entregado tarde el reporte: ',border=0,ln=1,align='C')
-    pdf.set_font("helvetica",'B',size=12)
-    pdf.multi_cell(w=0,txt=f'{query}',border=0,ln=1,align='C')
-    pdf.set_font("helvetica",size=12)
-    
-    pdf.set_left_margin(10) # MARGEN REAL
-    pdf.set_right_margin(10)
+        # pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros que han entregado tarde el reporte: ',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'{query}',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",size=12)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
 
-    pdf.set_draw_color(192, 194, 196)
-    
-    pdf.set_left_margin(10) # MARGEN REAL
-    pdf.set_right_margin(10)
+        pdf.set_draw_color(192, 194, 196)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
 
-    data = []
-    laux = []
-    materia = ''
-    data.append([f'Entregaron tarde: {query}'])
-    for i in lista:
-        data.append([i['Nombre_Usuario'],i['CorreoE']])
-        data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
-        genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
-        for u in genera:
-            for o in u:
-                    laux.append(str(o))
-            data.append(laux)
-            laux = []
+        data = []
+        laux = []
+        materia = ''
+        data.append([f'Entregaron tarde: {query}'])
+        for i in lista:
+            data.append([i['Nombre_Usuario'],i['CorreoE']])
+            data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
+            genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
+            for u in genera:
+                for o in u:
+                        laux.append(str(o))
+                data.append(laux)
+                laux = []
 
-    tamL = pdf.font_size_pt * 0.7
-    tamC = pdf.epw
-    tam = False
-    cy = 0
-    ex = 0
-    cx = 0
-    ey = 0
-    sal = 0
-    factor_Mul = 0
-    for i in data:
-        if len(i) > 1:
-            for u in i:
-                pdf.set_font('helvetica',size=12)
-                if len(i) == 2:
-                    pdf.set_font('helvetica','B',size=12)
-                    pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
-                elif len(u) > 23:
-                    cx = pdf.get_x()
-                    cy = pdf.get_y()
-                    tam = True
-                    ax = u.replace(' ','\n')
-                    sal = ax.count('\n')
-                    factor_Mul = sal + 1
-                    pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
-                    ex = pdf.get_x()
-                    ey = pdf.get_y()
-                    pdf.set_x(ex)
-                elif tam:
-                    cx = pdf.get_x()
-                    pdf.set_xy(cx,cy)
-                    pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
-                    ex = cx + (tamC/5)
-                    pdf.set_x(ex)
+        tamL = pdf.font_size_pt * 0.7
+        tamC = pdf.epw
+        tam = False
+        cy = 0
+        ex = 0
+        cx = 0
+        ey = 0
+        sal = 0
+        factor_Mul = 0
+        for i in data:
+            if len(i) > 1:
+                for u in i:
+                    pdf.set_font('helvetica',size=12)
+                    if len(i) == 2:
+                        pdf.set_font('helvetica','B',size=12)
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
+                    elif len(u) > 23:
+                        cx = pdf.get_x()
+                        cy = pdf.get_y()
+                        tam = True
+                        ax = u.replace(' ','\n')
+                        sal = ax.count('\n')
+                        factor_Mul = sal + 1
+                        pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
+                        ex = pdf.get_x()
+                        ey = pdf.get_y()
+                        pdf.set_x(ex)
+                    elif tam:
+                        cx = pdf.get_x()
+                        pdf.set_xy(cx,cy)
+                        pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
+                        ex = cx + (tamC/5)
+                        pdf.set_x(ex)
+                    else:
+                        pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0,align='L')
+                if tam:
+                    ey = cy + (tamL*(factor_Mul/1.99))
+                    pdf.set_y(ey)
+                    tam = False
                 else:
-                    pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0,align='L')
-            if tam:
-                ey = cy + (tamL*(factor_Mul/1.99))
-                pdf.set_y(ey)
-                tam = False
+                    tam = False
+                    pdf.ln(tamL)
             else:
                 tam = False
                 pdf.ln(tamL)
+                pdf.set_font('helvetica','B',size=12)
+                pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+                ey = pdf.get_y()
+
+        tardeC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde').count()
+        atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
+
+        pdf.ln(tamL)
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+
+        heights=[atiempoC,tardeC] #valores Y
+        bar_labels=['A tiempo','Tarde'] #valores X
+        matplotlib.use('agg')
+        plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
+        plt.xlabel('Entregas')
+        plt.ylabel('Cantidad de incidencia')
+        plt.title(f"Grafica de entregas de: {query}")
+
+        img_buf = io.BytesIO()
+        plt.savefig(img_buf, dpi=200)
+        plt.close()
+
+        pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
+        pdf.ln(tamL)
+
+        if tardeC > atiempoC:
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) después de la fecha acordada.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
         else:
-            tam = False
-            pdf.ln(tamL)
-            pdf.set_font('helvetica','B',size=12)
-            pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
-            ey = pdf.get_y()
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) antes o en la fecha acordada, nada mal.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
 
-    tardeC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde').count()
-    atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
+        pdf.output(buffer)
+        img_buf.close()
+        buffer.seek(0)
 
-    pdf.ln(tamL)
-    pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
-
-    heights=[atiempoC,tardeC] #valores Y
-    bar_labels=['A tiempo','Tarde'] #valores X
-    matplotlib.use('agg')
-    plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
-    plt.xlabel('Entregas')
-    plt.ylabel('Cantidad de incidencia')
-    plt.title(f"Grafica de entregas de: {query}")
-
-    img_buf = io.BytesIO()
-    plt.savefig(img_buf, dpi=200)
-    plt.close()
-
-    pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
-    pdf.ln(tamL)
-
-    if tardeC > atiempoC:
-        pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) después de la fecha acordada.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
+        if request.method == 'GET':
+            return FileResponse(buffer,filename='Avances.pdf',as_attachment=False)
     else:
-        pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) antes o en la fecha acordada, nada mal.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
-
-
-
-    pdf.output(buffer)
-    img_buf.close()
-    buffer.seek(0)
-
-    if request.method == 'GET':
-        return FileResponse(buffer,filename='Avances.pdf',as_attachment=False)
+        if request.method == 'GET':
+            return Response({'Error':'No hay suficiente informacion para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
