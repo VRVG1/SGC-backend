@@ -528,20 +528,18 @@ def p2MaeNoCalif(request):
                         found = True
                         break
                     else:
-                        if oldM != u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:
-                            auxS = u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario + ' - ' + u.ID_Generacion.ID_Asignan.ID_Materia.Nombre_Materia
-                            aux.update({auxS:u.ID_Generacion.ID_Reporte.Nombre_Reporte})
-                            oldM = u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario
+                        # if oldM != u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:
+                        auxS = u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario + ' - ' + u.ID_Generacion.ID_Asignan.ID_Materia.Nombre_Materia
+                        aux.update({auxS:u.ID_Generacion.ID_Reporte.Nombre_Reporte})
 
                     if found != True:
                         listaN.append(aux)
             else:
-                if oldM != i.ID_Asignan.ID_Usuario.Nombre_Usuario:
-                    auxS = i.ID_Asignan.ID_Usuario.Nombre_Usuario + ' - ' +i.ID_Asignan.ID_Materia.Nombre_Materia
-                    aux.update({auxS:i.ID_Reporte.Nombre_Reporte})
-                    oldM = i.ID_Asignan.ID_Usuario.Nombre_Usuario
-                    listaN.append(aux)
-                    aux = {}
+                # if oldM != i.ID_Asignan.ID_Usuario.Nombre_Usuario:
+                auxS = i.ID_Asignan.ID_Usuario.Nombre_Usuario + ' - ' +i.ID_Asignan.ID_Materia.Nombre_Materia
+                aux.update({auxS:i.ID_Reporte.Nombre_Reporte})
+                listaN.append(aux)
+                aux = {}
 
         lista = []
         old = ''
@@ -550,12 +548,13 @@ def p2MaeNoCalif(request):
                 if u != old:
                     guion = u.find('-')
                     mai = Usuarios.objects.get(Nombre_Usuario=u[:guion-1])
+                    nameNuevo = mai.Nombre_Usuario + ' -' + u[guion+1:]
                     reporte = i[u]
-                    old = u
+                    old = u[:guion-1]
                     auxU = {
                             'PK':mai.PK,
                             'ID_Usuario':{'username':mai.ID_Usuario.username,'password':mai.ID_Usuario.password},
-                            'Nombre_Usuario':f'{mai.Nombre_Usuario} - {reporte}',
+                            'Nombre_Usuario':f'{nameNuevo} - {reporte}',
                             'Tipo_Usuario':mai.Tipo_Usuario,
                             'CorreoE':mai.CorreoE,
                             'Permiso':mai.Permiso,
