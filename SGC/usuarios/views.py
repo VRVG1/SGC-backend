@@ -511,25 +511,33 @@ def p2MaeNoCalif(request):
         return Response({'Error':'No hay alojan'},status=status.HTTP_404_NOT_FOUND)
 
     listaN = []
+    oldM = ''
     if generan:
         for i in generan:
             found = False
             alojan = Alojan.objects.filter(ID_Generacion = i)
             aux = {}
-            for u in alojan:
-                pdf = str(u.Path_PDF)
-                calif = u.ID_Generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera.replace(' ','_') + '_' + u.ID_Generacion.ID_Asignan.ID_Materia.Nombre_Materia.replace(' ','_') + '_' + str(u.ID_Generacion.ID_Asignan.Semestre) + '_' + u.ID_Generacion.ID_Asignan.Grupo + '_Calificaciones.pdf'
-                barra = pdf.find('/')
-                pdf = pdf[barra+1:]
-                if calif == pdf:
-                    aux = {}
-                    found = True
-                    break
-                else:
-                    aux.update({u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:u.ID_Generacion.ID_Reporte.Nombre_Reporte})
+            if alojan:
+                for u in alojan:
+                    pdf = str(u.Path_PDF)
+                    calif = u.ID_Generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera.replace(' ','_') + '_' + u.ID_Generacion.ID_Asignan.ID_Materia.Nombre_Materia.replace(' ','_') + '_' + str(u.ID_Generacion.ID_Asignan.Semestre) + '_' + u.ID_Generacion.ID_Asignan.Grupo + '_Calificaciones.pdf'
+                    barra = pdf.find('/')
+                    pdf = pdf[barra+1:]
+                    if calif == pdf:
+                        aux = {}
+                        found = True
+                        break
+                    else:
+                        if oldM != u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:
+                            aux.update({u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:u.ID_Generacion.ID_Reporte.Nombre_Reporte})
+                            oldM = u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario
 
-                if found != True:
-                    listaN.append(aux)
+                    if found != True:
+                        listaN.append(aux)
+            else:
+                if oldM != u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:
+                    aux.update({u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:u.ID_Generacion.ID_Reporte.Nombre_Reporte})
+                    oldM = u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario
 
         lista = []
         old = ''
