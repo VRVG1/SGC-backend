@@ -535,9 +535,9 @@ def p2MaeNoCalif(request):
                     if found != True:
                         listaN.append(aux)
             else:
-                if oldM != u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:
-                    aux.update({u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario:u.ID_Generacion.ID_Reporte.Nombre_Reporte})
-                    oldM = u.ID_Generacion.ID_Asignan.ID_Usuario.Nombre_Usuario
+                if oldM != i.ID_Asignan.ID_Usuario.Nombre_Usuario:
+                    aux.update({i.ID_Asignan.ID_Usuario.Nombre_Usuario:i.ID_Reporte.Nombre_Reporte})
+                    oldM = i.ID_Asignan.ID_Usuario.Nombre_Usuario
 
         lista = []
         old = ''
