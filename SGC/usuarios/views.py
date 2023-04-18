@@ -548,7 +548,8 @@ def p2MaeNoCalif(request):
         for i in listaN:
             for u in i:
                 if u != old:
-                    mai = Usuarios.objects.get(Nombre_Usuario=u)
+                    guion = u.find('-')
+                    mai = Usuarios.objects.get(Nombre_Usuario=u[:guion-1])
                     reporte = i[u]
                     old = u
                     auxU = {
