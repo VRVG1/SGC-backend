@@ -1,6 +1,9 @@
 
 from datetime import date, datetime
+import io
 import os
+
+from django.http import FileResponse
 
 from usuarios.models import Usuarios
 from .models import Reportes, Generan, Alojan
@@ -15,6 +18,9 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
 from .tasks import sendMensaje
 from django.db.models import Q
+from fpdf import FPDF
+import matplotlib.pyplot as plt
+import matplotlib
 
 # Create your views here.
 
@@ -639,3 +645,414 @@ def getReportesUnidadAdmin(request):
             return Response(lista,status=status.HTTP_200_OK)
         except Generan.DoesNotExist:
             return Response({'Error':'No hay generan'},status=status.HTTP_404_NOT_FOUND)
+
+'''
+**************************************************************************************
+* Aqui empiezan las views de los filtros necesarios y reportes                       *
+* de la (parte 2).                                                                   *
+*                                                                                    *
+* La parte 2 es de Greñas                                                            *
+**************************************************************************************
+'''
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosPuntual(request, query):
+
+    try:
+        reporte = Reportes.objects.get(Nombre_Reporte=query)
+    except Reportes.DoesNotExist:
+        return Response({'Error':'Reporte no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+
+    if request.method == 'GET':
+        generan = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo')
+
+        aux = []
+        for i in generan:
+            aux.append(i.ID_Asignan.ID_Usuario)
+        aux = set(aux)
+        
+        lista = []
+        for i in list(aux):
+            aux = {
+                    'PK':i.PK,
+                    'ID_Usuario':{'username':i.ID_Usuario.username,'password':i.ID_Usuario.password},
+                    'Nombre_Usuario':i.Nombre_Usuario,
+                    'Tipo_Usuario':i.Tipo_Usuario,
+                    'CorreoE':i.CorreoE,
+                    'Permiso':i.Permiso
+                }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosTarde(request, query):
+
+    try:
+        reporte = Reportes.objects.get(Nombre_Reporte=query)
+    except Reportes.DoesNotExist:
+        return Response({'Error':'Reporte no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+
+    if request.method == 'GET':
+        generan = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde')
+
+        aux = []
+        for i in generan:
+            aux.append(i.ID_Asignan.ID_Usuario)
+        aux = set(aux)
+        
+        lista = []
+        for i in list(aux):
+            aux = {
+                    'PK':i.PK,
+                    'ID_Usuario':{'username':i.ID_Usuario.username,'password':i.ID_Usuario.password},
+                    'Nombre_Usuario':i.Nombre_Usuario,
+                    'Tipo_Usuario':i.Tipo_Usuario,
+                    'CorreoE':i.CorreoE,
+                    'Permiso':i.Permiso
+                }
+            lista.append(aux)
+        return Response(lista,status=status.HTTP_200_OK)
+
+
+titulo = ''
+
+class PDF(FPDF):
+    def header(self):
+        # Header ************************************************
+        global titulo
+        self.set_font("helvetica", 'B',size=12)
+        self.image("./static/tecnm.png", 10, 10, 45, 20, "") # Carga la foto del tecnm
+        self.set_left_margin(55) # Margen para separar la imagen del texto centrado
+        self.image("./static/itcg.png", 185, 10, 20, 20, "") # Carga la foto del itcg
+        self.set_right_margin(55) # Margen para separar la imagen del texto centrado
+        self.cell(w=0,txt='Instituto Tecnológico de Ciudad Guzman',border=0,ln=2,align='C')
+        self.cell(txt=' ',border=0,ln=2)
+        self.set_font("helvetica", size=12)
+        self.multi_cell(w=0,txt='Sistema para la gestión del curso "SGC"\n',border=0,ln=2,align='C')
+
+        self.multi_cell(w=0,txt=f'Reporte de: {titulo}',border=0,ln=2,align='C')
+        self.set_left_margin(10) # MARGEN REAL
+        self.set_right_margin(10)
+        # Header ************************************************
+
+    def footer(self):
+        # Footer ************************************************
+        # -15 representa 1.5cm del fondo de la pagina:
+        self.set_y(-15)
+        self.set_font("helvetica", "I", 8)
+        # Poner el numero de pagina y fecha:
+        hoy = date.today()
+        fecha = hoy.strftime('%d/%m/%Y')
+        self.multi_cell(0, 10, f"Reporte recuperado el: {fecha}. Pagina {self.page_no()}/{{nb}}", align="C")
+        # Footer ************************************************
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosPuntualPDF(request, query):
+
+    try:
+        reporte = Reportes.objects.get(Nombre_Reporte=query)
+    except Reportes.DoesNotExist:
+        return Response({'Error':'Reporte no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    generan = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo')
+
+    aux = []
+    for i in generan:
+        aux.append(i.ID_Asignan.ID_Usuario)
+    aux = set(aux)
+    
+    lista = []
+    for i in list(aux):
+        aux = {
+                'Nombre_Usuario':i.Nombre_Usuario,
+                'CorreoE':i.CorreoE,
+            }
+        lista.append(aux)
+    
+    if generan:
+        buffer = io.BytesIO()
+
+        global titulo
+        titulo = 'Maestros(as) que entregaron puntual sus avances\n'
+
+        pdf = PDF(format='Letter')
+        pdf.add_page()
+        pdf.set_font("helvetica",size=12)
+        pdf.set_title('Maestros(as) que entregaron puntual sus avances')
+
+        pdf.set_left_margin(55) # MARGEN REAL
+        pdf.set_right_margin(55)
+
+        # pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros que han entregado a tiempo el reporte: ',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'{query}',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",size=12)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        pdf.set_draw_color(192, 194, 196)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        data = []
+        laux = []
+        materia = ''
+        data.append([f'Entregaron a tiempo: {query}'])
+        for i in lista:
+            data.append([i['Nombre_Usuario'],i['CorreoE']])
+            data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
+            genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
+            for u in genera:
+                for o in u:
+                        laux.append(str(o))
+                data.append(laux)
+                laux = []
+
+        tamL = pdf.font_size_pt * 0.7
+        tamC = pdf.epw
+        tam = False
+        cy = 0
+        ex = 0
+        cx = 0
+        ey = 0
+        sal = 0
+        factor_Mul = 0
+        for i in data:
+            if len(i) > 1:
+                for u in i:
+                    pdf.set_font('helvetica',size=12)
+                    if len(i) == 2:
+                        pdf.set_font('helvetica','B',size=12)
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
+                    elif len(u) > 23:
+                        cx = pdf.get_x()
+                        cy = pdf.get_y()
+                        tam = True
+                        ax = u.replace(' ','\n')
+                        sal = ax.count('\n')
+                        factor_Mul = sal + 1
+                        pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
+                        ex = pdf.get_x()
+                        ey = pdf.get_y()
+                        pdf.set_x(ex)
+                    elif tam:
+                        cx = pdf.get_x()
+                        pdf.set_xy(cx,cy)
+                        pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
+                        ex = cx + (tamC/5)
+                        pdf.set_x(ex)
+                    else:
+                        pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0,align='L')
+                if tam:
+                    ey = cy + (tamL*(factor_Mul/1.99))
+                    pdf.set_y(ey)
+                    tam = False
+                else:
+                    tam = False
+                    pdf.ln(tamL)
+            else:
+                tam = False
+                pdf.ln(tamL)
+                pdf.set_font('helvetica','B',size=12)
+                pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+                ey = pdf.get_y()
+
+        tardeC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde').count()
+        atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
+
+        pdf.ln(tamL)
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+
+        heights=[atiempoC,tardeC] #valores Y
+        bar_labels=['A tiempo','Tarde'] #valores X
+        matplotlib.use('agg')
+        plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
+        plt.xlabel('Entregas') 
+        plt.ylabel('Cantidad de incidencia')
+        plt.title(f"Grafica de entregas de: {query}")
+
+        img_buf = io.BytesIO()
+        plt.savefig(img_buf, dpi=200)
+        plt.close()
+
+        pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
+        pdf.ln(tamL)
+
+        if tardeC > atiempoC:
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) después de la fecha acordada.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
+        else:
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) antes o en la fecha acordada, nada mal.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
+
+        pdf.output(buffer)
+        img_buf.close()
+        buffer.seek(0)
+
+        if request.method == 'GET':
+            return FileResponse(buffer,filename='Avances.pdf',as_attachment=False)
+    else:
+        if request.method == 'GET':
+            return Response({'Error':'No hay suficiente informacion para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p2MaestrosTardePDF(request, query):
+
+    try:
+        reporte = Reportes.objects.get(Nombre_Reporte=query)
+    except Reportes.DoesNotExist:
+        return Response({'Error':'Reporte no existe'},status=status.HTTP_404_NOT_FOUND)
+    
+    generan = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde')
+
+    aux = []
+    for i in generan:
+        aux.append(i.ID_Asignan.ID_Usuario)
+    aux = set(aux)
+    
+    lista = []
+    for i in list(aux):
+        aux = {
+                'Nombre_Usuario':i.Nombre_Usuario,
+                'CorreoE':i.CorreoE,
+            }
+        lista.append(aux)
+    
+    if generan:
+        buffer = io.BytesIO()
+
+        global titulo
+        titulo = 'Maestros(as) que se retrasaron en la entrega de los avances\n'
+
+        pdf = PDF(format='Letter')
+        pdf.add_page()
+        pdf.set_font("helvetica",size=12)
+        pdf.set_title('Maestros(as) que se retrasaron en la entrega de los avances')
+
+        pdf.set_left_margin(55) # MARGEN REAL
+        pdf.set_right_margin(55)
+
+        # pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros que han entregado tarde el reporte: ',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",'B',size=12)
+        pdf.multi_cell(w=0,txt=f'{query}',border=0,ln=1,align='C')
+        pdf.set_font("helvetica",size=12)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        pdf.set_draw_color(192, 194, 196)
+        
+        pdf.set_left_margin(10) # MARGEN REAL
+        pdf.set_right_margin(10)
+
+        data = []
+        laux = []
+        materia = ''
+        data.append([f'Entregaron tarde: {query}'])
+        for i in lista:
+            data.append([i['Nombre_Usuario'],i['CorreoE']])
+            data.append(['Materia','Grupo','Semestre','Fecha programada','Entregado'])
+            genera = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde',ID_Asignan__ID_Usuario__Nombre_Usuario = i['Nombre_Usuario']).values_list('ID_Asignan__ID_Materia__Nombre_Materia','ID_Asignan__Grupo','ID_Asignan__Semestre','ID_Reporte__Fecha_Entrega','Fecha_Entrega')
+            for u in genera:
+                for o in u:
+                        laux.append(str(o))
+                data.append(laux)
+                laux = []
+
+        tamL = pdf.font_size_pt * 0.7
+        tamC = pdf.epw
+        tam = False
+        cy = 0
+        ex = 0
+        cx = 0
+        ey = 0
+        sal = 0
+        factor_Mul = 0
+        for i in data:
+            if len(i) > 1:
+                for u in i:
+                    pdf.set_font('helvetica',size=12)
+                    if len(i) == 2:
+                        pdf.set_font('helvetica','B',size=12)
+                        pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
+                    elif len(u) > 23:
+                        cx = pdf.get_x()
+                        cy = pdf.get_y()
+                        tam = True
+                        ax = u.replace(' ','\n')
+                        sal = ax.count('\n')
+                        factor_Mul = sal + 1
+                        pdf.multi_cell(w=tamC/5,txt=ax,border=1,ln=0,align='L')
+                        ex = pdf.get_x()
+                        ey = pdf.get_y()
+                        pdf.set_x(ex)
+                    elif tam:
+                        cx = pdf.get_x()
+                        pdf.set_xy(cx,cy)
+                        pdf.multi_cell(w=tamC/5,h=tamL*(factor_Mul/1.99),txt=u,border=1,ln=0,align='L')
+                        ex = cx + (tamC/5)
+                        pdf.set_x(ex)
+                    else:
+                        pdf.cell(w=tamC/5,h=tamL,txt=u,border=1,ln=0,align='L')
+                if tam:
+                    ey = cy + (tamL*(factor_Mul/1.99))
+                    pdf.set_y(ey)
+                    tam = False
+                else:
+                    tam = False
+                    pdf.ln(tamL)
+            else:
+                tam = False
+                pdf.ln(tamL)
+                pdf.set_font('helvetica','B',size=12)
+                pdf.cell(w=0,h=tamL,txt=i[0],border=1,ln=2,align='C')
+                ey = pdf.get_y()
+
+        tardeC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega tarde').count()
+        atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
+
+        pdf.ln(tamL)
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+
+        heights=[atiempoC,tardeC] #valores Y
+        bar_labels=['A tiempo','Tarde'] #valores X
+        matplotlib.use('agg')
+        plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
+        plt.xlabel('Entregas')
+        plt.ylabel('Cantidad de incidencia')
+        plt.title(f"Grafica de entregas de: {query}")
+
+        img_buf = io.BytesIO()
+        plt.savefig(img_buf, dpi=200)
+        plt.close()
+
+        pdf.image(img_buf, w=pdf.epw,h=pdf.eph/2)
+        pdf.ln(tamL)
+
+        if tardeC > atiempoC:
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) después de la fecha acordada.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
+        else:
+            pdf.multi_cell(w=0,txt=f'Se observa que el: {query} se entregó (o se está entregando) antes o en la fecha acordada, nada mal.\nPara enviar un recordatorio o memo a algún maestro lo puede hacer desde el SGC mismo.',align='C')
+
+        pdf.output(buffer)
+        img_buf.close()
+        buffer.seek(0)
+
+        if request.method == 'GET':
+            return FileResponse(buffer,filename='Avances.pdf',as_attachment=False)
+    else:
+        if request.method == 'GET':
+            return Response({'Error':'No hay suficiente informacion para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)

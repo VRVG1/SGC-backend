@@ -25,3 +25,5 @@ webencodings==0.5.1
 XlsxWriter==3.0.3
 zope.event==4.5.0
 zope.interface==5.4.0
+fpdf2==2.7.1
+matplotlib==3.4.2

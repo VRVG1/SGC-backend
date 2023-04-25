@@ -1,5 +1,5 @@
 erDiagram
-    Usuario ||--o{ Asignan : a
+    Usuario ||--o{ Asignan : seleccionan
     Usuario {
         auto_increment ID_Usuario PK
         string-70 Nombre_Usuario
@@ -10,10 +10,11 @@ erDiagram
         boolean Permiso
     }
 
-    Materias ||--o{ Asignan : a 
+    Materias ||--o{ Asignan : usa 
     Materias {
-        string-8 clave_reticula PK
-        string-8 ID_Carrera FK
+        int pik PK
+        string-8 clave_reticula 
+        string-8 Carrera FK "from Carreras"
         string-100 Nombre_Materia
         int horas_teoricas 
         int horas_practicas
@@ -21,15 +22,15 @@ erDiagram
         int unidades
     }
     
-    Carreras ||--o{ Materias : a
+    Carreras ||--o{ Materias : tiene
     Carreras {
         string-8 ID_Carrera PK
         string-50 Nombre_Carrera
     }
 
-    Asignan ||--o{ Generan : a
+    Asignan ||--o{ Generan : crea
     Asignan {
-        auto_increment ID_Asignan PK
+        int ID_Asignan PK
         int ID_Usuario FK "from Usuarios"
         int ID_Materia FK "from Materias"
         string-50 Semestre
@@ -39,25 +40,27 @@ erDiagram
         string-4 aula
     }
 
-    Reportes ||--o{ Generan: a
+    Reportes ||--o{ Generan: crea
     Reportes {
         auto_increment ID_Reporte PK
         string-100 Nombre_Reporte
         date Fecha_Entrega
         string-1000 Descripcion
-        choice Opcional
-        choice Unidad
+        boolean Opcional
+        boolean Unidad
+        boolean Calificaciones
     }
     
-    Generan ||--o{ Alojan : a
+    Generan ||--o{ Alojan : guarda
     Generan {
         auto_increment ID_Generacion PK
+        int ID_Asignan FK "from Asignan"
+        int ID_Reporte FK "from Reportes"
         string-20 Estatus
         string-20 Periodo
         date Fecha_Entrega
-        int ID_Asignan FK "from Asignan"
-        int ID_Reporte FK "from Reportes"
         int reprobados
+        int Unidad
     }
 
     Alojan {
