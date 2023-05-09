@@ -5,6 +5,7 @@ import os
 
 from django.http import FileResponse
 
+from materias.models import Carreras
 from usuarios.models import Usuarios
 from .models import Reportes, Generan, Alojan
 from .serializers import AlojanSerializer, ReportesSerializer, GeneranSerializer
@@ -1056,3 +1057,128 @@ def p2MaestrosTardePDF(request, query):
     else:
         if request.method == 'GET':
             return Response({'Error':'No hay suficiente informacion para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3ReprobacionMaestro(request, query):
+    splitted = query.split("-")
+    try:
+        generan = Generan.objects.filter(Q(ID_Asignan__ID_Usuario__Nombre_Usuario=splitted[0]),
+                                         Q(ID_Asignan__ID_Materia__Carrera__Nombre_Carrera=splitted[1])
+                                         )
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    print(f"\n\nGeneran: {generan}")
+    if request.method == 'GET':
+        lista = []
+        for generacion in generan:
+            formato = {
+                'Nombre_Usuario': generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                'Nombre_Materia': generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                'Nombre_Carrera': generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                'Semestre': generacion.ID_Asignan.Semestre,
+                'Grupo': generacion.ID_Asignan.Grupo,
+                'Unidad': generacion.Unidad,
+                'aprobados': 100 - generacion.Reprobados,
+                'reprobados': generacion.Reprobados,
+            }
+            lista.append(formato)
+        return Response(data=lista, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3ReprobacionMateria(request, query):
+    splitted = query.split("-")
+    try:
+        generan = Generan.objects.filter(Q(ID_Asignan__ID_Materia__Nombre_Materia=splitted[0]),
+                                         Q(ID_Asignan__ID_Materia__Carrera__Nombre_Carrera=splitted[1]))
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        for generacion in generan:
+            formato = {
+                'Nombre_Usuario': generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                'Nombre_Materia': generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                'Nombre_Carrera': generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                'Semestre': generacion.ID_Asignan.Semestre,
+                'Grupo': generacion.ID_Asignan.Grupo,
+                'Unidad': generacion.Unidad,
+                'aprobados': 100 - generacion.Reprobados,
+                'reprobados': generacion.Reprobados,
+            }
+            lista.append(formato)
+        return Response(data=lista, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3ReprobacionGrupo(request, query):
+    splitted = query.split("-")
+    try:
+        generan = Generan.objects.filter(Q(ID_Asignan__Grupo=splitted[0]),
+                                         Q(ID_Asignan__ID_Materia__Carrera__Nombre_Carrera=splitted[1]))
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        for generacion in generan:
+            formato = {
+                'Nombre_Usuario': generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                'Nombre_Materia': generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                'Nombre_Carrera': generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                'Semestre': generacion.ID_Asignan.Semestre,
+                'Grupo': generacion.ID_Asignan.Grupo,
+                'Unidad': generacion.Unidad,
+                'aprobados': 100 - generacion.Reprobados,
+                'reprobados': generacion.Reprobados,
+            }
+            lista.append(formato)
+        return Response(data=lista, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3IndiceEntregaReportesCarrera(request, nombre_reporte, nombre_carrera):
+    if request.method == 'GET':
+        if nombre_reporte == "" or nombre_carrera == "":
+            return Response({'Error': "Argumento vacio"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            reporte = Reportes.objects.get(Nombre_Reporte=nombre_reporte)
+            carrera = Carreras.objects.get(Nombre_Carrera=nombre_carrera)
+
+            generan = Generan.objects.filter(Q(ID_Reporte=reporte) &
+                                             Q(ID_Asignan__ID_Materia__Carrera=carrera))
+            count_puntual = generan.filter(Estatus="Entrega a tiempo").count()
+            count_inpuntual = generan.filter(Estatus="Entrega tarde").count()
+
+        except Reportes.DoesNotExist:
+            return Response({'Error': "Reporte no existe"},
+                            status=status.HTTP_404_NOT_FOUND)
+        except Carreras.DoesNotExist:
+            return Response({'Error': "Carrera no existe"},
+                            status=status.HTTP_404_NOT_FOUND)
+        except Generan.DoesNotExist:
+            return Response({'Error': "Generan no existe"},
+                            status=status.HTTP_404_NOT_FOUND)
+        formato = {
+                "Nombre_Reporte": reporte.Nombre_Reporte,
+                "Nombre_Carrera": carrera.Nombre_Carrera,
+                "Entrega_Limite": reporte.Fecha_Entrega,
+                "Count_Puntuales": count_puntual,
+                "Count_Inpuntuales": count_inpuntual
+                }
+    return Response(data=formato, status=status.HTTP_200_OK)

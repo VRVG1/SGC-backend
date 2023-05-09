@@ -1,7 +1,31 @@
-from django.urls import path
-from .views import ReportesView, CreateReportesView, GeneranView, CrearGeneran, borrarReporte, updateReporte, CreateAlojanView, alojanFromView, OnlySaveReportesView, EnviarGeneran, GetGeneranUser
-from .views import GetReporte, AlojanView, AdminSendMail, IniciarNuevoSem, borrarEntrega, getResportesUnidad, entregarUnidad, getReportesUnidadAdmin
-from .views import p2MaestrosPuntual, p2MaestrosTarde, p2MaestrosPuntualPDF, p2MaestrosTardePDF
+from django.urls import path, re_path
+from .views import ReportesView,\
+        CreateReportesView,\
+        GeneranView,\
+        CrearGeneran,\
+        borrarReporte,\
+        updateReporte,\
+        CreateAlojanView,\
+        alojanFromView,\
+        OnlySaveReportesView,\
+        EnviarGeneran,\
+        GetGeneranUser
+from .views import GetReporte,\
+        AlojanView,\
+        AdminSendMail,\
+        IniciarNuevoSem,\
+        borrarEntrega,\
+        getResportesUnidad,\
+        entregarUnidad,\
+        getReportesUnidadAdmin
+from .views import p2MaestrosPuntual,\
+        p2MaestrosTarde,\
+        p2MaestrosPuntualPDF,\
+        p2MaestrosTardePDF,\
+        p3ReprobacionMaestro,\
+        p3ReprobacionMateria,\
+        p3ReprobacionGrupo,\
+        p3IndiceEntregaReportesCarrera
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -28,4 +52,12 @@ urlpatterns = [
     path('p2MaeXTard/<query>',p2MaestrosTarde),
     path('p2MaeXPuntPDF/<query>',p2MaestrosPuntualPDF),
     path('p2MaeXTardPDF/<query>',p2MaestrosTardePDF),
+
+    path('p3IndXMae/<query>', p3ReprobacionMaestro),
+    path('p3IndXMat/<query>', p3ReprobacionMateria),
+    path('p3IndXGrp/<query>', p3ReprobacionGrupo),
+    re_path(
+        r"^p3IndEntRepoXC/(?:Nombre_Reporte=(?P<nombre_reporte>[a-zA-Z0-9ñáéíóú\s]{0,480})&Nombre_Carrera=(?P<nombre_carrera>[a-zA-Zñáéíóú\s]{0,80}))$",
+        p3IndiceEntregaReportesCarrera),
+
 ]

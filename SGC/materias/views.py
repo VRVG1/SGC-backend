@@ -1627,3 +1627,11 @@ def p2AllCarrerasPDF(request):
     else:
         if request.method == 'GET':
             return Response({'Error':'No hay suficiente informacion para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getGrupos(request, query):
+    if request.method == 'GET':
+        return Response(data=Asignan.grupos, status=status.HTTP_200_OK)
