@@ -23,6 +23,9 @@ from fpdf import FPDF
 import matplotlib.pyplot as plt
 import matplotlib
 
+from pathlib import Path
+import json
+
 # Create your views here.
 
 
@@ -1182,3 +1185,28 @@ def p3IndiceEntregaReportesCarrera(request, nombre_reporte, nombre_carrera):
                 "Count_Inpuntuales": count_inpuntual
                 }
     return Response(data=formato, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getRegistroPNC(request):
+    # TODO: Hacer que busque todos los grupos que presenten un indice de
+    #       reprobación arriba del 62% o un desfase de dos semanas en relación
+    #       con la fechaEntrega del Reporte
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    registro_pnc = {}
+    if (registro_pnc_path.exists() and registro_pnc_path.is_file()):
+        # Si existe el archivo registro_pnc.json se deberá leer y transformar
+        # de formato json a python.
+        data_file = open(registro_pnc_path, "r")
+        registro_pnc = json.load(data_file)
+    else:
+        print(f"Creando '{registro_pnc_path}'...")
+        data_file = open(registro_pnc_path, "w")
+        json.dump(registro_pnc, data_file)
+
+    print(registro_pnc)
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)
