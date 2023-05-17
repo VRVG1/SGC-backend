@@ -26,7 +26,10 @@ from .views import p2MaestrosPuntual,\
         p3ReprobacionMateria,\
         p3ReprobacionGrupo,\
         p3IndiceEntregaReportesCarrera,\
-        getRegistroPNC
+        getRegistroPNC,\
+        addRegistroPNC,\
+        updateRegistroPNC,\
+        deleteRegistroPNC
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -61,6 +64,8 @@ urlpatterns = [
         r"^p3IndEntRepoXC/(?:Nombre_Reporte=(?P<nombre_reporte>[a-zA-Z0-9ñáéíóú\s]{0,480})&Nombre_Carrera=(?P<nombre_carrera>[a-zA-Zñáéíóú\s]{0,80}))$",
         p3IndiceEntregaReportesCarrera),
 
-    path('getPNC', getRegistroPNC)
-
+    path('getPNC', getRegistroPNC),
+    path('addPNC', addRegistroPNC),
+    path('updatePNC', updateRegistroPNC),
+    path('deltePNC', deleteRegistroPNC)
 ]
