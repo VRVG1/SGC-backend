@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import io
 from operator import itemgetter
 from django.http import FileResponse
@@ -581,7 +581,16 @@ class PDF(FPDF):
         self.cell(txt=' ',border=0,ln=2)
         self.set_font("helvetica", size=12)
         self.multi_cell(w=0,txt='Sistema para la gestión del curso "SGC"\n',border=0,ln=2,align='C')
+        date01 = 'Jun 20'
+        fecha = date.today()
+        parse01 = datetime.strptime(
+            date01, '%b %d').date().replace(year=fecha.year)
 
+        if fecha < parse01:
+            semestre = 'Enero - Junio ' + str(fecha.year)
+        else:
+            semestre = 'Agosto - Diciembre ' + str(fecha.year)
+        self.cell(w=0,txt=semestre,border=0,ln=2,align='C')
         self.multi_cell(w=0,txt=f'Reporte de: {titulo}',border=0,ln=2,align='C')
         self.set_left_margin(10) # MARGEN REAL
         self.set_right_margin(10)
@@ -629,7 +638,7 @@ def p2MaestrosCarreraPDF(request, query):
         pdf.set_left_margin(10) # MARGEN REAL
         pdf.set_right_margin(10)
         
-        pdf.cell(txt=f'De su busqueda "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
+        pdf.cell(txt=f'De su búsqueda "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
 
         txt = ''
         for i in aux:
@@ -644,7 +653,7 @@ def p2MaestrosCarreraPDF(request, query):
         names = []
         for a in aux:
             data.append([a])
-            data.append(['Nombre','Correo electronico'])
+            data.append(['Nombre','Correo electrónico'])
             for i in asignan:
                 if i.ID_Materia.Carrera.Nombre_Carrera == a:
                     if i.ID_Usuario.Nombre_Usuario not in names:
@@ -659,7 +668,7 @@ def p2MaestrosCarreraPDF(request, query):
             if len(i) > 1:
                 pdf.set_font('Helvetica',size=12)
                 for u in i:
-                    if u == 'Nombre' or u == 'Correo electronico':
+                    if u == 'Nombre' or u == 'Correo electrónico':
                         pdf.set_font('Helvetica','B',size=12)
                         pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,align='C')
                     else:
@@ -730,7 +739,7 @@ def p2MaestrosHoraPDF(request, query):
         data = []
         for i in usuarios:
             data.append([i.Nombre_Usuario])
-            data.append(['Materia','Semestre','Grupo','Dia','Aula','Hora'])
+            data.append(['Materia','Semestre','Grupo','Día','Aula','Hora'])
             auxAs = Asignan.objects.filter(ID_Usuario = i, Hora__startswith = query)
             for a in auxAs:
                 data.append([a.ID_Materia.Nombre_Materia,str(a.Semestre),a.Grupo,a.Dia,a.Aula,a.Hora])
@@ -832,17 +841,17 @@ def p2MaestrosIndiceAltoPDF(request):
         buffer = io.BytesIO()
 
         global titulo
-        titulo = 'Maestros(as) con el mas alto indice de reprobación\n'
+        titulo = 'Maestros(as) con el más alto índice de reprobación\n'
 
         pdf = PDF(format='Letter')
         pdf.add_page()
         pdf.set_font("helvetica",size=12)
-        pdf.set_title('Maestros(as) con el mas alto indice de reprobación')
+        pdf.set_title('Maestros(as) con el más alto índice de reprobación')
 
         pdf.set_left_margin(55) # MARGEN REAL
         pdf.set_right_margin(55)
 
-        pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros ordenados de mayor a menor, por indice de reprobación',border=0,ln=1,align='C')
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los maestros ordenados de mayor a menor, por índice de reprobación',border=0,ln=1,align='C')
         
         pdf.set_left_margin(10) # MARGEN REAL
         pdf.set_right_margin(10)
@@ -855,8 +864,8 @@ def p2MaestrosIndiceAltoPDF(request):
         maestrosordenIn = sorted(nombresIndices.items(),key=lambda x:x[1],reverse=True)
         
         data = []
-        data.append(['Maestros(as) por indice de reprobación'])
-        data.append(['Maestro(a)','Indice de reprobacion','Correo'])
+        data.append(['Maestros(as) por índice de reprobación'])
+        data.append(['Maestro(a)','Índice de reprobación','Correo'])
         for i in maestrosordenIn:
             data.append(i)
                 
@@ -885,7 +894,7 @@ def p2MaestrosIndiceAltoPDF(request):
                 pdf.ln(tamL)
         
         pdf.ln(tamL)
-        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera gráfica: ',ln=2,align='C')
 
         heights=[] #valores Y
         bar_labels=[] #valores X
@@ -899,8 +908,8 @@ def p2MaestrosIndiceAltoPDF(request):
         matplotlib.use('agg')
         plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
         plt.xlabel('Maestros(as)')
-        plt.ylabel('Indices de reprobación')
-        plt.title("Grafica de indices de reprobación")
+        plt.ylabel('Índices de reprobación')
+        plt.title("Gráfica de índices de reprobación")
 
         img_buf = io.BytesIO()
         plt.savefig(img_buf, dpi=200)
@@ -958,12 +967,12 @@ def p2MaestrosIndiceBajoPDF(request):
         buffer = io.BytesIO()
 
         global titulo
-        titulo = 'Maestros(as) con el mas bajo indice de reprobación\n'
+        titulo = 'Maestros(as) con el más bajo índice de reprobación\n'
 
         pdf = PDF(format='Letter')
         pdf.add_page()
         pdf.set_font("helvetica",size=12)
-        pdf.set_title('Maestros(as) con el mas bajo indice de reprobación')
+        pdf.set_title('Maestros(as) con el más bajo índice de reprobación')
 
         pdf.set_left_margin(55) # MARGEN REAL
         pdf.set_right_margin(55)
@@ -981,8 +990,8 @@ def p2MaestrosIndiceBajoPDF(request):
         maestrosordenIn = sorted(nombresIndices.items(),key=lambda x:x[1])
         
         data = []
-        data.append(['Maestros(as) por indice de reprobación'])
-        data.append(['Maestro(a)','Indice de reprobacion','Correo'])
+        data.append(['Maestros(as) por índice de reprobación'])
+        data.append(['Maestro(a)','Índice de reprobación','Correo'])
         for i in maestrosordenIn:
             data.append(i)
                 
@@ -1011,7 +1020,7 @@ def p2MaestrosIndiceBajoPDF(request):
                 pdf.ln(tamL)
         
         pdf.ln(tamL)
-        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera gráfica: ',ln=2,align='C')
 
         heights=[] #valores Y
         bar_labels=[] #valores X
@@ -1025,8 +1034,8 @@ def p2MaestrosIndiceBajoPDF(request):
         matplotlib.use('agg')
         plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
         plt.xlabel('Maestros(as)')
-        plt.ylabel('Indices de reprobación')
-        plt.title("Grafica de indices de reprobación")
+        plt.ylabel('Índices de reprobación')
+        plt.title("Gráfica de índices de reprobación")
 
         img_buf = io.BytesIO()
         plt.savefig(img_buf, dpi=200)
@@ -1092,7 +1101,7 @@ def p2AllMaestrosPDF(request):
         auxC = set()
         data.append(['Maestros(as)'])
         for u in usuarios:
-            data.append(['Nombre','Correo electronico'])
+            data.append(['Nombre','Correo electrónico'])
             data.append([u.Nombre_Usuario,u.CorreoE])
             data.append(['Carrera(s) donde imparte'])
             carreras = Asignan.objects.filter(ID_Usuario__Nombre_Usuario=u.Nombre_Usuario)
@@ -1108,7 +1117,7 @@ def p2AllMaestrosPDF(request):
             if len(i) > 1:
                 if len(i) == 2:
                     for u in i:
-                        if u == 'Nombre' or u == 'Correo electronico':
+                        if u == 'Nombre' or u == 'Correo electrónico':
                             pdf.set_font('helvetica','B',size=12)
                             pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,ln=0,align='C')
                         else:
@@ -1128,8 +1137,7 @@ def p2AllMaestrosPDF(request):
                     for u in i:
                         for x in u:
                             pdf.set_font('helvetica',size=12)
-                            pdf.cell(w=0,h=tamL,txt=x,border=1,ln=0,align='C')
-                        pdf.ln(tamL)
+                            pdf.cell(w=0,h=tamL,txt=x,border=1,ln=2,align='C')
                     pdf.ln(tamL)
 
         pdf.output(buffer)
@@ -1198,17 +1206,17 @@ def p2MaeNoCalifPDF(request):
         buffer = io.BytesIO()
 
         global titulo
-        titulo = 'Maestros(as) que no han entregado listas de calificaciones.\n'
+        titulo = 'Maestros(as) que no han entregado listas de calificaciónes.\n'
 
         pdf = PDF(format='Letter')
         pdf.add_page()
         pdf.set_font("helvetica",size=12)
-        pdf.set_title('Maestros(as) que no han entregado listas de calificaciones')
+        pdf.set_title('Maestros(as) que no han entregado listas de calificaciónes')
 
         pdf.set_left_margin(55) # MARGEN REAL
         pdf.set_right_margin(55)
 
-        pdf.multi_cell(w=0,txt=f'Se presentan todos los(las) maestros(as) que no han entregado listas de calificaciones\n',border=0,ln=1,align='C')
+        pdf.multi_cell(w=0,txt=f'Se presentan todos los(las) maestros(as) que no han entregado listas de calificaciónes\n',border=0,ln=1,align='C')
         
         pdf.set_left_margin(10) # MARGEN REAL
         pdf.set_right_margin(10)
@@ -1219,7 +1227,7 @@ def p2MaeNoCalifPDF(request):
         pdf.set_right_margin(10)
 
         data = []
-        data.append(['Maestros(as) que no han entregado calificaciones'])
+        data.append(['Maestros(as) que no han entregado calificaciónes'])
         for i in listaN:
             if isinstance(i,list):
                 for u in i:
