@@ -18,6 +18,7 @@ from materias.models import Asignan
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
 from .tasks import sendMensaje
+from .pnc_validators import validarDatos
 from django.db.models import Q
 from fpdf import FPDF
 import matplotlib.pyplot as plt
@@ -25,6 +26,7 @@ import matplotlib
 
 from pathlib import Path
 import json
+import re
 
 # Create your views here.
 
@@ -1197,7 +1199,14 @@ def getRegistroPNC(request):
     cwd = os.getcwd()
     filename_registro_pnc = "registro_pnc.json"
     registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
-    registro_pnc = {}
+    registro_pnc = {
+        "lastPNCID": 1,
+        "registro": {
+            "reportesRegistrados": {
+                "idsReportes": []
+            }
+        }
+    }
     if (registro_pnc_path.exists() and registro_pnc_path.is_file()):
         # Si existe el archivo registro_pnc.json se deberá leer y transformar
         # de formato json a python.
@@ -1210,3 +1219,48 @@ def getRegistroPNC(request):
 
     print(registro_pnc)
     return Response(data=registro_pnc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def addRegistroPNC(request):
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    eval_res = validarDatos(request.data, registro_pnc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    (lastPNCID, registro, has_reportes_registrados, registro_reporte_id, registro_pnc_id) = eval_res
+
+    registro_pnc["lastPNCID"] = lastPNCID
+    if has_reportes_registrados:
+        registro_pnc["registro"]["reportesRegistrados"] = registro["reportesRegistrados"]
+
+    registro_pnc["registro"][registro_reporte_id] = registro[registro_reporte_id]
+    registro_pnc["registro"][registro_pnc_id] = registro[registro_pnc_id]
+
+    with open(registro_pnc_path, "w") as data_file:
+        json.dump(registro_pnc, data_file)
+
+    print(request.data)
+
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def updateRegistroPNC(request):
+    pass
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def deleteRegistroPNC(request):
+    pass
