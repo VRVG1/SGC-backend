@@ -123,6 +123,7 @@ class AsignarMateriaView(APIView):
             try:
                 asignan = Asignan.objects.get(
                     ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
+                found = True
             except Asignan.DoesNotExist:
                 serializer.save()
 
@@ -132,31 +133,33 @@ class AsignarMateriaView(APIView):
                     ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
                 crearReportesUnidad(asignan,usuario)
             else:
-                date01 = 'Jun 20'
-                fecha = date.today()
-                parse01 = datetime.strptime(
-                    date01, '%b %d').date().replace(year=fecha.year)
+                if not found:
+                    date01 = 'Jun 20'
+                    fecha = date.today()
+                    parse01 = datetime.strptime(
+                        date01, '%b %d').date().replace(year=fecha.year)
 
-                if fecha < parse01:
-                    periodo = 'Enero - Junio ' + str(fecha.year)
+                    if fecha < parse01:
+                        periodo = 'Enero - Junio ' + str(fecha.year)
+                    else:
+                        periodo = 'Agosto - Diciembre ' + str(fecha.year)
+
+                    asignan = Asignan.objects.get(
+                        ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
+                    for x in reportes:
+                        if x.Unidad != True:
+                            generate = Generan(
+                                Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=periodo, Reprobados=0, Fecha_Entrega=x.Fecha_Entrega)
+                            generate.save()
+
+                    crearReportesUnidad(asignan,usuario)
                 else:
-                    periodo = 'Agosto - Diciembre ' + str(fecha.year)
+                    pass
+                user = Usuarios.objects.get(Nombre_Usuario=usuario)
+                user.Permiso = False
+                user.save()
 
-                asignan = Asignan.objects.get(
-                    ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
-                for x in reportes:
-                    if x.Unidad != True:
-                        generate = Generan(
-                            Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=periodo, Reprobados=0, Fecha_Entrega=x.Fecha_Entrega)
-                        generate.save()
-
-                crearReportesUnidad(asignan,usuario)
-
-            user = Usuarios.objects.get(Nombre_Usuario=usuario)
-            user.Permiso = False
-            user.save()
-
-            return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 '''
