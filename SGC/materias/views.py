@@ -112,6 +112,7 @@ class AsignarMateriaView(APIView):
         serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid():
+            found = False
             usuario = serializer.validated_data.get('ID_Usuario')
             materia = serializer.validated_data.get('ID_Materia')
             semestre = serializer.validated_data.get('Semestre')
