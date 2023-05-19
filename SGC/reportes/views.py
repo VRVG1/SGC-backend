@@ -18,7 +18,9 @@ from materias.models import Asignan
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
 from .tasks import sendMensaje
-from .pnc_validators import checkAddRegistro, checkUpdateRegistro
+from .pnc_validators import checkAddRegistro,\
+        checkUpdateRegistro,\
+        checkDeleteRegistro
 from django.db.models import Q
 from fpdf import FPDF
 import matplotlib.pyplot as plt
@@ -1265,14 +1267,14 @@ def updateRegistroPNC(request):
     eval_res = checkUpdateRegistro(request.data, registro_pnc)
     if type(eval_res) is Response:
         return eval_res
-    print(f"\n\n\n\t\tOLD REGISTRO PNC\n\n{registro_pnc}\n\n")
 
     (lastPNCID,
      registro,
      has_reportes_registrados,
      reportes_ids,
      pnc_id) = eval_res
-    registro
+    # WARN: Que rollo con este registro ???
+    # registro
     registro_pnc["lastPNCID"] = lastPNCID
     if has_reportes_registrados:
         registro_pnc["registro"]["reportesRegistrados"] = registro["reportesRegistrados"]
@@ -1281,7 +1283,6 @@ def updateRegistroPNC(request):
     # modificar
     old_reporte_linkedPNCs = []
     # Se toma el diccionarion del pnc a modificar del registro general
-    print(f"\n\n\n\tPNC ID: {pnc_id}")
     old_toChange_pnc = registro_pnc["registro"][pnc_id]
     # Se toma el valor 'numeroPNC' del pnc a modificar
     old_toChange_pnc_noPNC = old_toChange_pnc["numeroPNC"]
@@ -1316,7 +1317,6 @@ def updateRegistroPNC(request):
 
     with open(registro_pnc_path, "w") as data_file:
         json.dump(registro_pnc, data_file)
-    print(f"\n\n\n\t\tNUEVO REGISTRO PNC\n\n{registro_pnc}\n\n")
 
     return Response(data=registro_pnc, status=status.HTTP_200_OK)
 
@@ -1325,4 +1325,31 @@ def updateRegistroPNC(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def deleteRegistroPNC(request):
-    pass
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    eval_res = checkDeleteRegistro(request.data, registro_pnc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    (registro, pnc_id, reporte_id) = eval_res
+
+    old_toChange_pnc = registro_pnc["registro"][pnc_id]
+    old_toChange_pnc_noPNC = old_toChange_pnc["numeroPNC"]
+
+    old_reporte_linkedPNCs = registro_pnc["registro"][reporte_id]["linkedPNCs"].copy()
+
+    for old_pnc_id in old_reporte_linkedPNCs:
+        old_pnc_id_numeroPNC = registro_pnc["registro"][old_pnc_id]["numeroPNC"]
+        if old_pnc_id_numeroPNC > old_toChange_pnc_noPNC:
+            registro_pnc["registro"][old_pnc_id]["numeroPNC"] = old_pnc_id_numeroPNC - 1
+
+    registro_pnc["registro"][reporte_id] = registro[reporte_id]
+    registro_pnc["registro"].pop(pnc_id)
+    with open(registro_pnc_path, "w") as data_file:
+        json.dump(registro_pnc, data_file)
+
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)

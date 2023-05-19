@@ -54,7 +54,7 @@ def checkRegistroKeys(registro_keys):
             if has_reportes_registrados:
                 return Response(data={
                     "Error": "Estructura de registro no valida. Elemento reportesRegistrados repetido"
-                    },
+                },
                     status=status.HTTP_400_BAD_REQUEST)
             has_reportes_registrados = True
         elif re.match(rgx_id_reporte, key) is not None:
@@ -76,7 +76,7 @@ def checkRegistroKeys(registro_keys):
         else:
             return Response(data={
                 "Error": "Estructura de registro no valida. Elemento no tiene un formato valido"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
     return (has_reportes_registrados,
@@ -131,13 +131,13 @@ def checkReceivedData(datos):
         else:
             return Response(data={
                 "Error": f"Estructura de objeto no valida. '{key}' no es un atributo de data2send"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
         if type(datos[key]) is not atributo_dato_dataclass["dataClass"]:
             return Response(data={
                 "Error": f"Estructura de objeto no valida. El contenido relacionado a '{key}' no es de tipo {atributo_dato_dataclass['dataClass']}"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
     # Se crean las variables solo para dar contexto de lo que retornan
@@ -184,20 +184,20 @@ def checkReportesRegistrados(reportes_ids,
     if len(keys) != 1:
         return Response(data={
             "Error": "Estructura de reportesRegistrados no valida. Más elementos de los esperados"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     if "idsReportes" not in keys:
         return Response(data={
             "Error": "Estructura de reportesRegistrados no valida. No existe el elemento 'idsReportes'"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     new_ids_reportes = reportes_registrados["idsReportes"]
     if type(new_ids_reportes) is not list:
         return Response(data={
             "Error": "Estructura de reportesRegistrados no valida. Valor relacionado a 'idsReportes' no es de tipo 'arreglo'"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     # El ultimo id agregado en idsReportes debe ser el del nuevo reporte
@@ -207,7 +207,7 @@ def checkReportesRegistrados(reportes_ids,
         #       dentro de los reportes declarados en el registro entrante
         return Response(data={
             "Error": "Estructura de reportesRegistrados no valida. Id del nuevo reporte no concuerda"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     # Todos los ids dentro de idsReportes menos el ultimo son de reportes
@@ -218,7 +218,7 @@ def checkReportesRegistrados(reportes_ids,
         if id_reporte in registro_gral_idsReportes:
             return Response(data={
                 "Error": f"Estructura de reportesRegistrados no valida. Id '{id_reporte}' no existe en el servidor"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
     return True
@@ -246,6 +246,7 @@ def checkReporte(pnc_id, reporte, registro_gral, mode):
                 a esta función:
                     -> 1: checkAddRegistro
                     -> 2: checkUpdateRegistro
+                    -> 3: checkDeleteRegistro
 
     @return La función retorna 2 tipos de datos:
                 Response: Indica que la estructura del parametro 'datos' no
@@ -268,44 +269,56 @@ def checkReporte(pnc_id, reporte, registro_gral, mode):
                             False:  Indica que el parametro 'reporte' cumple
                                     con el estandar pero este si contiene el
                                     nuevo pnc en linkedPNCs (newReporte).
+
+                    mode=3:
+                            True:   Indica que el parametro 'reporte' cumple
+                                    con el estandar pero este no contiene el
+                                    nuevo pnc en linkedPNCs (oldReporte).
+                            False:  Indica que el parametro 'reporte' cumple
+                                    con el estandar pero este si contiene el
+                                    nuevo pnc en linkedPNCs (newReporte).
     """
     new_registro_reporte_key = reporte.keys()
     # Cambiará de estado cuando se detecte un registro cuyo linkedPNCs no
     # contenga el parametro pnc_id
-    update_mode_flag = False
+    pnc_id_in_new_linked_pncs = False
     if len(new_registro_reporte_key) != 1:
         return Response(data={
             "Error": "Estructura de reporte_<ID> no valida. Más elementos de los esperados"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     if "linkedPNCs" not in new_registro_reporte_key:
         return Response(data={
             "Error": "Estructura de reporte_<ID> no valida. No existe el elemento 'linkedPNCs'"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     new_linked_pncs = reporte["linkedPNCs"]
     if type(new_linked_pncs) is not list:
         return Response(data={
             "Error": "Estructura de reporte_<ID> no valida. Valor relacionado a 'linkedPNCs' no es de tipo 'arreglo'"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     # El último id agregado en linkedPNCs debe ser el nuevo pnc
     if pnc_id != new_linked_pncs[-1]:
-        if mode == 2:
-            update_mode_flag = True
+        # TODO: Revisar el uso de mode en esta parte del código, ¿Realmente
+        #       que es lo que se busca aquí?
+        if mode == 2:   # llamado desde checkUpdateRegistro
+            pnc_id_in_new_linked_pncs = True
+        elif mode == 3:  # llamado desde checkDeleteRegistro
+            pnc_id_in_new_linked_pncs = True
         else:
             return Response(data={
                 "Error": "Estructura de reporte_<ID> no valida. Id del nuevo PNC no concuerda"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
     # Todos los ids dentro de linkedPNCs menos el ultimo son de pncs existentes
     # a menos que update_mode_flag sea True, ya que este no contiene el nuevo
     # pnc
-    if not update_mode_flag:
+    if not pnc_id_in_new_linked_pncs:
         new_linked_pncs = new_linked_pncs[:-1]
 
     # Comprobando si los ids pasados por parametro realmente existen en el
@@ -314,14 +327,14 @@ def checkReporte(pnc_id, reporte, registro_gral, mode):
         if id_pnc not in registro_gral:
             return Response(data={
                 "Error": f"Estructura de reporte_<ID> no valida. Id '{id_pnc}' no existe en el servidor"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
     # Retornará True si el reporte evaluado no contiene el pnc_id (oldReporte)
     # pero retornará False si el reporte evaluado contiene el pnc_id
     # (newReporte)
-    if mode == 2:
-        return update_mode_flag
+    if mode == 2 or mode == 3:
+        return pnc_id_in_new_linked_pncs
 
     # Retorno para checkAddRegistro
     return True
@@ -354,19 +367,19 @@ def checkPNC(pnc):
                              estandar
     """
     atributos_pnc = {
-            "numeroPNC": {"dataClass": int},
-            "folio": {"dataClass": str},
-            "fechaRegistro": {"dataClass": str},
-            "especIncumplida": {"dataClass": str},
-            "accionImplantada": {"dataClass": str},
-            "isEliminaPNC": {"dataClass": bool}
-            }
+        "numeroPNC": {"dataClass": int},
+        "folio": {"dataClass": str},
+        "fechaRegistro": {"dataClass": str},
+        "especIncumplida": {"dataClass": str},
+        "accionImplantada": {"dataClass": str},
+        "isEliminaPNC": {"dataClass": bool}
+    }
 
     new_registro_pnc_keys = pnc.keys()
     if len(new_registro_pnc_keys) != 6:
         return Response(data={
             "Error": "Estructura de pnc_<ID> no valida. Elementos no concuerdan"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     for atributo_pnc in atributos_pnc:
@@ -375,13 +388,13 @@ def checkPNC(pnc):
         except KeyError:
             return Response(data={
                 "Error": f"Estructura de pnc_<ID> no valida. El atributo '{atributo_pnc}' no existe en el nuevo pnc"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
         if type(valor_atributo) is not atributos_pnc[atributo_pnc]["dataClass"]:
             return Response(data={
                 "Error": f"Estructura de pnc_<ID> no valida. El valor relacionado con el atributo '{valor_atributo}' no es de tipo '{atributos_pnc[atributo_pnc]['dataClass']}'"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
     return True
 
@@ -455,7 +468,7 @@ def checkAddRegistro(datos, registro_gral_pnc):
     if len(registro_keys) < 2 or len(registro_keys) > 3:
         return Response(data={
             "Error": "Estructura de registro no valida. Más elementos de los esperados"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     check_registro_keys = checkRegistroKeys(registro_keys)
@@ -484,7 +497,7 @@ def checkAddRegistro(datos, registro_gral_pnc):
     if invalid_reportes_registrados or invalid_amount_reportes_pncs:
         return Response(data={
             "Error": "Estructura de registro no valida. Faltan elementos"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     # Si existe reportesRegistrados en el registro recibido
@@ -500,12 +513,10 @@ def checkAddRegistro(datos, registro_gral_pnc):
     # Si unicamente se reciben 2 elementos (reporte_<ID> y pnc_<ID>) significa
     # que existe ya una referencia a dicho reporte en el registro general
     if len(registro_keys) == 2:
-        print(f"\n\n\n\tRegistro Reporte ID: {reportes_ids[0]}")
-        print(f"\n\n\n\tRegistro General: {registro_gral_pnc}")
         if reportes_ids[0] not in registro_gral_pnc["registro"]:
             return Response(data={
                 "Error": "Estructura de reporte_<ID> no valida. El reporte que se esta actualizando no existe en el registro general"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
     registro_reporte = registro[reportes_ids[0]]
@@ -535,8 +546,10 @@ def validacionReportesRegistros(registro_keys,
     # reportesRegistrados cuando el número de llaves es igual a 3, se considera
     # un error en la estructura cuando una de estas reglas no se cumple, por
     # lo tanto...
-    or_registro_len = len(registro_keys) == valid_number_keys or has_reportes_registrados
-    and_registro_len = len(registro_keys) == valid_number_keys and has_reportes_registrados
+    or_registro_len = len(
+        registro_keys) == valid_number_keys or has_reportes_registrados
+    and_registro_len = len(
+        registro_keys) == valid_number_keys and has_reportes_registrados
     xor_registro_len = or_registro_len and not and_registro_len
     # El xor evalua si el registro_keys tiene un length de 3 y
     # has_reportes_registrados es falso retornará el response 400
@@ -642,7 +655,7 @@ def checkUpdateRegistro(datos, registro_gral_pnc):
     if len(registro_keys) < 2 or len(registro_keys) > 4:
         return Response(data={
             "Error": "Estructura de registro no valida. Más elementos de los esperados"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     check_registro_keys = checkRegistroKeys(registro_keys)
@@ -670,7 +683,7 @@ def checkUpdateRegistro(datos, registro_gral_pnc):
     if invalid_reportes_registrados or invalid_amount_reportes_pncs:
         return Response(data={
             "Error": "Estructura de registro no valida. Faltan elementos"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     # Si existe reortesRegistrados en el registro recibido
@@ -693,7 +706,7 @@ def checkUpdateRegistro(datos, registro_gral_pnc):
             if reporte_id not in registro_gral_pnc["registro"]:
                 return Response(data={
                     "Error": "Estructura de reporte_<ID> no valida. El reporte que se esta actualizando no existe en el registro general"
-                    },
+                },
                     status=status.HTTP_400_BAD_REQUEST)
     elif len(registro_keys) == 2:
         # Si unicamente se reciben 2 elementos (reporte_<ID> y pnc_<ID>)
@@ -702,7 +715,7 @@ def checkUpdateRegistro(datos, registro_gral_pnc):
         if reportes_ids[0] not in registro_gral_pnc["registro"]:
             return Response(data={
                 "Error": "Estructura de reporte_<ID> no valida. El reporte que se esta actualizando no existe en el registro general"
-                },
+            },
                 status=status.HTTP_400_BAD_REQUEST)
 
     found_old_reporte = False
@@ -721,7 +734,7 @@ def checkUpdateRegistro(datos, registro_gral_pnc):
             if check_reporte and found_old_reporte:
                 return Response(data={
                     "Error": "Estructura de reporte_<ID> no valida. Ambos reportes tienen el ID del PNC en su linkedPNC"
-                    },
+                },
                     status=status.HTTP_400_BAD_REQUEST)
             elif check_reporte and not found_old_reporte:
                 found_old_reporte = True
@@ -729,12 +742,12 @@ def checkUpdateRegistro(datos, registro_gral_pnc):
     if len(reportes_ids) == 2 and not found_old_reporte:
         return Response(data={
             "Error": "Estructura de reporte_<ID> no valida. Ningun reporte contiene el ID del nuevo PNC"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
     elif len(reportes_ids) == 1 and found_old_reporte:
         return Response(data={
             "Error": "Estructura de reporte_<ID> no valida. El reporte no tiene registrado el ID del PNC en su linkedPNC"
-            },
+        },
             status=status.HTTP_400_BAD_REQUEST)
 
     pnc = registro[pncs_ids[0]]
@@ -747,3 +760,94 @@ def checkUpdateRegistro(datos, registro_gral_pnc):
             has_reportes_registrados,
             reportes_ids,
             pncs_ids[0])
+
+
+def checkDeleteRegistro(datos, registro_gral_pnc):
+    """
+    checkDeleteRegistro verifica que la estructura del parametro datos cumpla
+    con el estandar para eliminar un PNC del registro general.
+
+    @param datos    Dict. Se espera que su estructura sea:
+        {
+            "reporte_<ID>": {
+                "linkedPNCs": [
+                    "reporte_1",
+                    ...,
+                    "reporte_n"
+                    !"pnc_<ID>"
+                ]
+            },
+            "pnc_<ID>": "pnc_<ID>"
+        }
+
+        En donde:
+            "reporte_<ID>": Siempre estará en el registro. Y este contendrá
+                            todos los pnc_ids registrados en el a excepción
+                            del que será eliminado.
+
+            "deletePNC":    Siempre estará en el registro. Contendrá el
+                            pnc_<ID> del registro PNC a eliminar.
+
+    @param registro_gral_pnc    Dict. Referencia al contenido
+                                de registro_gral_pnc.js
+    """
+
+    if type(datos) is not dict:
+        return Response(data={
+            "Error": "Estructura de datos no valida."
+        },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    datos_keys = datos.keys()
+
+    if len(datos_keys) != 2:
+        return Response(data={"Error": "Estructura de datos no valida."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    check_registro_keys = checkRegistroKeys(datos_keys)
+    if type(check_registro_keys) is Response:
+        return check_registro_keys
+
+    (has_reportes_registrados,
+     count_match_rgx_reporte,
+     count_match_rgx_pnc,
+     reportes_ids,
+     pncs_ids) = check_registro_keys
+
+    if count_match_rgx_reporte != 1:
+        return Response(data={
+            "Error": "No se permiten multiples reportes en el registro."
+        },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    if count_match_rgx_pnc != 1:
+        return Response(data={
+            "Error": "No se permiten multiples PNCs en el registro."
+        },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    reporte_id = reportes_ids[0]
+    pnc_id = pncs_ids[0]
+    reporte = datos[reporte_id]
+    check_reporte = checkReporte(pnc_id,
+                                 reporte,
+                                 registro_gral_pnc["registro"],
+                                 3)
+
+    if type(check_reporte) is Response:
+        return check_reporte
+
+    if not check_reporte:
+        return Response(data={
+            "Error": "Reporte todavía contiene el pnc_<ID> del reporte a eliminar"
+        },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    rgx_id_pnc = r"(?:^pnc_[0-9]+$)"
+    if re.match(rgx_id_pnc, datos[pnc_id]) is None:
+        return Response(data={
+            "Error": "Formato de pnc_<ID> no valido."
+        },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    return (datos, datos[pnc_id], reporte_id)

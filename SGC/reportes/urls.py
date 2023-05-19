@@ -67,5 +67,5 @@ urlpatterns = [
     path('getPNC', getRegistroPNC),
     path('addPNC', addRegistroPNC),
     path('updatePNC', updateRegistroPNC),
-    path('deltePNC', deleteRegistroPNC)
+    path('deletePNC', deleteRegistroPNC)
 ]
