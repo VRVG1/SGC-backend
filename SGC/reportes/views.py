@@ -18,7 +18,7 @@ from materias.models import Asignan
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
 from .tasks import sendMensaje
-from .pnc_validators import validarDatos
+from .pnc_validators import checkAddRegistro, checkUpdateRegistro
 from django.db.models import Q
 from fpdf import FPDF
 import matplotlib.pyplot as plt
@@ -1231,7 +1231,7 @@ def addRegistroPNC(request):
     with open(registro_pnc_path, "r") as data_file:
         registro_pnc = json.load(data_file)
 
-    eval_res = validarDatos(request.data, registro_pnc)
+    eval_res = checkAddRegistro(request.data, registro_pnc)
     if type(eval_res) is Response:
         return eval_res
 
@@ -1256,7 +1256,69 @@ def addRegistroPNC(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def updateRegistroPNC(request):
-    pass
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    eval_res = checkUpdateRegistro(request.data, registro_pnc)
+    if type(eval_res) is Response:
+        return eval_res
+    print(f"\n\n\n\t\tOLD REGISTRO PNC\n\n{registro_pnc}\n\n")
+
+    (lastPNCID,
+     registro,
+     has_reportes_registrados,
+     reportes_ids,
+     pnc_id) = eval_res
+    registro
+    registro_pnc["lastPNCID"] = lastPNCID
+    if has_reportes_registrados:
+        registro_pnc["registro"]["reportesRegistrados"] = registro["reportesRegistrados"]
+
+    # Actualizando noPNC de los reportes presentes despues del reporte a
+    # modificar
+    old_reporte_linkedPNCs = []
+    # Se toma el diccionarion del pnc a modificar del registro general
+    print(f"\n\n\n\tPNC ID: {pnc_id}")
+    old_toChange_pnc = registro_pnc["registro"][pnc_id]
+    # Se toma el valor 'numeroPNC' del pnc a modificar
+    old_toChange_pnc_noPNC = old_toChange_pnc["numeroPNC"]
+
+    for reporte_id in reportes_ids:
+        # Si el ID del pnc a modificar no se encuentra dentro del linkedPNCs
+        # de uno de los reportes_ids se considerá como que es el reporte del
+        # cual se elimino dicho PNC (old reporte).
+        if pnc_id not in registro[reporte_id]["linkedPNCs"]:
+            # Se copia el viejo linkedPNCs del reporte_id del registro general
+            old_reporte_linkedPNCs = registro_pnc["registro"][reporte_id]["linkedPNCs"].copy()
+
+        # Actualiza el valor del reporte_id en registro_pnc por el que se
+        # encuentra en registro
+        registro_pnc["registro"][reporte_id] = registro[reporte_id]
+
+    # Se procede a iterar la lista de linkedPNCs obtenida del old_reporte.
+    # Si como tal no existia old_reporte dentro de registro, entonces
+    # old_reporte_linkedPNCs es una lista vacía, por lo que no se ejecutaría
+    # el bloque dentro del for
+    for old_pnc_id in old_reporte_linkedPNCs:
+        # Asigna el valor de numeroPNC del reporte cuyo id es old_pnc_id
+        old_pnc_id_numeroPNC = registro_pnc["registro"][old_pnc_id]["numeroPNC"]
+        # Si el numeroPNC de old_pnc_id es mayor al del pnc a modificar se
+        # decrementa en 1 su valor
+        if old_pnc_id_numeroPNC > old_toChange_pnc_noPNC:
+            registro_pnc["registro"][old_pnc_id]["numeroPNC"] = old_pnc_id_numeroPNC - 1
+
+    # Actualiza el valor de pnc_id en registro_pnc por el que se encuentra en
+    # registro
+    registro_pnc["registro"][pnc_id] = registro[pnc_id]
+
+    with open(registro_pnc_path, "w") as data_file:
+        json.dump(registro_pnc, data_file)
+    print(f"\n\n\n\t\tNUEVO REGISTRO PNC\n\n{registro_pnc}\n\n")
+
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
