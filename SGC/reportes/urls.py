@@ -29,7 +29,8 @@ from .views import p2MaestrosPuntual,\
         getRegistroPNC,\
         addRegistroPNC,\
         updateRegistroPNC,\
-        deleteRegistroPNC
+        deleteRegistroPNC,\
+        downloadRegistroPNC
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -67,5 +68,6 @@ urlpatterns = [
     path('getPNC', getRegistroPNC),
     path('addPNC', addRegistroPNC),
     path('updatePNC', updateRegistroPNC),
-    path('deletePNC', deleteRegistroPNC)
+    path('deletePNC', deleteRegistroPNC),
+    path('PncPDF', downloadRegistroPNC)
 ]
