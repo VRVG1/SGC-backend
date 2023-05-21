@@ -28,7 +28,7 @@ import matplotlib
 
 from pathlib import Path
 import json
-import re
+from .pdf_pnc import PncPDF
 
 # Create your views here.
 
@@ -1353,3 +1353,46 @@ def deleteRegistroPNC(request):
         json.dump(registro_pnc, data_file)
 
     return Response(data=registro_pnc, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def downloadRegistroPNC(request):
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    if len(registro_pnc["registro"]) > 1:
+        registro = registro_pnc["registro"]
+        ids_reportes = registro["reportesRegistrados"]["idsReportes"]
+        nombre_reporte = ""
+        fecha_reporte = ""
+        pdf = PncPDF()
+        pdf.set_title("Registro y Control de Productos No Conformes")
+        buffer = io.BytesIO()
+        for id_reporte in ids_reportes:
+            no_id_repo = id_reporte.split('_')[1]
+            try:
+                reporte = Reportes.objects.get(ID_Reporte=no_id_repo)
+            except Reportes.DoesNotExist:
+                return Response(data={ "Error": "No existe el reporte." },
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            nombre_reporte = reporte.Nombre_Reporte
+            fecha_reporte = reporte.Fecha_Entrega
+            linked_pncs = registro[id_reporte]["linkedPNCs"]
+            pdf.printReporte(registro,
+                             linked_pncs,
+                             nombre_reporte,
+                             fecha_reporte)
+        pdf.output(buffer)
+        buffer.seek(0)
+        return FileResponse(buffer,
+                            filename='Registro y Control de Productos No Conformes.pdf',
+                            as_attachment=False)
+    else:
+        return Response(data={"Error": "No hay registros guardados"},
+                        status=status.HTTP_400_BAD_REQUEST)
