@@ -1396,3 +1396,35 @@ def downloadRegistroPNC(request):
     else:
         return Response(data={"Error": "No hay registros guardados"},
                         status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getRegistroVGC(request, id_carrera):
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    registro_vgc = {
+        'lastReporteID': 1,
+        'registro': {}
+    }
+
+    if (registro_vgc_path.exists() and registro_vgc_path.is_file()):
+        data_file = open(registro_vgc_path, "r")
+        registro_vgc = json.load(data_file)
+    else:
+        print(f"Creando {registro_vgc_path}...")
+        data_file = open(registro_vgc_path, "w")
+        json.dump(registro_vgc, data_file)
+
+    print(registro_vgc)
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)

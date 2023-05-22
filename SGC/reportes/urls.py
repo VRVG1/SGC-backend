@@ -30,7 +30,8 @@ from .views import p2MaestrosPuntual,\
         addRegistroPNC,\
         updateRegistroPNC,\
         deleteRegistroPNC,\
-        downloadRegistroPNC
+        downloadRegistroPNC,\
+        getRegistroVGC
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -69,5 +70,6 @@ urlpatterns = [
     path('addPNC', addRegistroPNC),
     path('updatePNC', updateRegistroPNC),
     path('deletePNC', deleteRegistroPNC),
-    path('PncPDF', downloadRegistroPNC)
+    path('PncPDF', downloadRegistroPNC),
+    re_path(r"^getVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$", getRegistroVGC)
 ]
