@@ -31,7 +31,12 @@ from .views import p2MaestrosPuntual,\
         updateRegistroPNC,\
         deleteRegistroPNC,\
         downloadRegistroPNC,\
-        getRegistroVGC
+        p3RepUXCXMaeXGraXGrp,\
+        getRegistroVGC,\
+        addRegistroVGC,\
+        updateRegistroVGC,\
+        deleteRegistroVGC,\
+        vgcExcel
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -59,6 +64,7 @@ urlpatterns = [
     path('p2MaeXPuntPDF/<query>',p2MaestrosPuntualPDF),
     path('p2MaeXTardPDF/<query>',p2MaestrosTardePDF),
 
+    # end-points Estadisticas
     path('p3IndXMae/<query>', p3ReprobacionMaestro),
     path('p3IndXMat/<query>', p3ReprobacionMateria),
     path('p3IndXGrp/<query>', p3ReprobacionGrupo),
@@ -66,10 +72,24 @@ urlpatterns = [
         r"^p3IndEntRepoXC/(?:Nombre_Reporte=(?P<nombre_reporte>[a-zA-Z0-9ñáéíóú\s]{0,480})&Nombre_Carrera=(?P<nombre_carrera>[a-zA-Zñáéíóú\s]{0,80}))$",
         p3IndiceEntregaReportesCarrera),
 
+    # end-points Productos No Conformes
     path('getPNC', getRegistroPNC),
     path('addPNC', addRegistroPNC),
     path('updatePNC', updateRegistroPNC),
     path('deletePNC', deleteRegistroPNC),
     path('PncPDF', downloadRegistroPNC),
-    re_path(r"^getVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$", getRegistroVGC)
+
+    # end-points Verificacion de Gestion del Curso
+    re_path(r"^p3RepUXCXMaeXGraXGrp/(?:ID_Carrera=(?P<id_carrera>[a-zA-Záéíóúñ]{,8})&Nombre_Maestro=(?P<nombre_maestro>[a-zA-Z_0-9ñáéíóú\s]{1,70})&Grado=(?P<grado>[0-9]{1,2})&Grupo=(?P<grupo>[A-Z]{1}))$",
+            p3RepUXCXMaeXGraXGrp),
+    re_path(r"^getVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$",
+            getRegistroVGC),
+    re_path(r"^addVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$",
+            addRegistroVGC),
+    re_path(r"^updateVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$",
+            updateRegistroVGC),
+    re_path(r"^deleteVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$",
+            deleteRegistroVGC),
+    re_path(r"^VGC-Excel/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$",
+            vgcExcel),
 ]

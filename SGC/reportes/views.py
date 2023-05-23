@@ -21,6 +21,9 @@ from .tasks import sendMensaje
 from .pnc_validators import checkAddRegistro,\
         checkUpdateRegistro,\
         checkDeleteRegistro
+from .vgc_validators import checkAddRegistroVGC,\
+        checkUpdateRegistroVGC,\
+        checkDeleteRegistroVGC
 from django.db.models import Q
 from fpdf import FPDF
 import matplotlib.pyplot as plt
@@ -1401,6 +1404,56 @@ def downloadRegistroPNC(request):
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3RepUXCXMaeXGraXGrp(request, id_carrera, nombre_maestro, grado, grupo):
+    """
+    p3ReporteUnidad X Carrera X Maestro X Grado X Grupo
+    """
+    try:
+        carrera = Carreras.objects.get(ID_Carrera=id_carrera)
+        maestro = Usuarios.objects.get(Nombre_Usuario=nombre_maestro)
+
+        asignan = Asignan.objects.filter(Q(ID_Usuario=maestro) &
+                                         Q(ID_Materia__Carrera=carrera) &
+                                         Q(Semestre=grado) &
+                                         Q(Grupo=grupo))
+    except Carreras.DoesNotExist:
+        return Response({'Error': "Carrera no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    except Usuarios.DoesNotExist:
+        return Response({'Error': "Usuario no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    except Asignan.DoesNotExist:
+        return Response({'Error': "Asignan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    print("\n\n\n\t\tGeneran Relacionados")
+    data_2_send = []
+    try:
+        for asignacion in asignan:
+            generan = Generan.objects.filter(Q(ID_Asignan=asignacion))
+            for generacion in generan:
+                print(generacion)
+                data_2_send.append({
+                    "ID_Asignan": generacion.ID_Asignan.ID_Asignan,
+                    "Nombre_Profesor": generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                    "Nombre_Materia:": generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                    "Nombre_Reporte": generacion.ID_Reporte.Nombre_Reporte,
+                    "Fecha_Entregado": generacion.Fecha_Entrega,
+                    "Fecha_Especificada_Entrega": generacion.ID_Reporte.Fecha_Entrega,
+                    "Carrera": generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                    "Semestre": generacion.ID_Asignan.Semestre,
+                    "Grupo": generacion.ID_Asignan.Grupo,
+                    "Reprobados": generacion.Reprobados
+                    })
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    return Response(data_2_send, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
 def getRegistroVGC(request, id_carrera):
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
@@ -1415,7 +1468,7 @@ def getRegistroVGC(request, id_carrera):
     registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
     registro_vgc = {
         'lastReporteID': 1,
-        'registro': {}
+        'registro': []
     }
 
     if (registro_vgc_path.exists() and registro_vgc_path.is_file()):
@@ -1428,3 +1481,140 @@ def getRegistroVGC(request, id_carrera):
 
     print(registro_vgc)
     return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def addRegistroVGC(request, id_carrera):
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    eval_res = checkAddRegistroVGC(request.data, registro_vgc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    # Se reasigna a una nueva variable solo para dar contexto del resultado
+    newReporte = eval_res
+    registro_vgc["lastReporteID"] = registro_vgc["lastReporteID"] + 1
+    registro_vgc["registro"].append(newReporte)
+
+    with open(registro_vgc_path, "w") as data_file:
+        json.dump(registro_vgc, data_file)
+
+    print(request.data)
+
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def updateRegistroVGC(request, id_carrera):
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    eval_res = checkUpdateRegistroVGC(request.data, registro_vgc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    # Se reasigna a una nueva variable solo para dar contexto del resultado
+    updatedRegistro = eval_res
+
+    for idx, reporte in enumerate(registro_vgc["registro"]):
+        if reporte["numeroReporte"] == updatedRegistro["numeroReporte"]:
+            registro_vgc["registro"][idx] = updatedRegistro
+            break
+
+    with open(registro_vgc_path, "w") as data_file:
+        json.dump(registro_vgc, data_file)
+
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def deleteRegistroVGC(request, id_carrera):
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    eval_res = checkDeleteRegistroVGC(request.data, registro_vgc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    no_reporte_2_delete = eval_res
+
+    idx_reporte_2_delete = -1
+    is_reporte_2_delete_found = False
+    for idx, reporte in enumerate(registro_vgc["registro"]):
+        if is_reporte_2_delete_found:
+            # Se debe actualizar el numeroReporte de todos los reportes que se
+            # encuentran despues del que fue eliminado
+            registro_vgc["registro"][idx]["numeroReporte"] = registro_vgc["registro"][idx]["numeroReporte"] - 1
+        if reporte["numeroReporte"] == no_reporte_2_delete:
+            # Se toma el idx de aquel reporte cuyo atributo 'numeroReporte' es
+            # igual al recibido
+            idx_reporte_2_delete = idx
+            # Ya que fue encontrado el registro a eliminar, se activa la flag
+            # 'is_reporte_2_delete_found' que será usado para las demás
+            # iteraciones del for
+            is_reporte_2_delete_found = True
+
+    # Se reduce el lastReporteID en 1 ya que fue eliminado un reporte
+    registro_vgc["lastReporteID"] = registro_vgc["lastReporteID"] - 1
+    # Se elimina el reporte que se encuentra en el idx_reporte_2_delete
+    registro_vgc["registro"].pop(idx_reporte_2_delete)
+
+    with open(registro_vgc_path, "w") as data_file:
+        json.dump(registro_vgc, data_file)
+
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def vgcExcel(request, id_carrera):
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    pass
