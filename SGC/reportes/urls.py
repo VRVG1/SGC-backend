@@ -31,7 +31,7 @@ from .views import p2MaestrosPuntual,\
         updateRegistroPNC,\
         deleteRegistroPNC,\
         downloadRegistroPNC,\
-        p3RepUXCXMaeXGraXGrp,\
+        p3RepUXCXMaeXMatXGraXGrp,\
         getRegistroVGC,\
         addRegistroVGC,\
         updateRegistroVGC,\
@@ -80,8 +80,8 @@ urlpatterns = [
     path('PncPDF', downloadRegistroPNC),
 
     # end-points Verificacion de Gestion del Curso
-    re_path(r"^p3RepUXCXMaeXGraXGrp/(?:ID_Carrera=(?P<id_carrera>[a-zA-Záéíóúñ]{,8})&Nombre_Maestro=(?P<nombre_maestro>[a-zA-Z_0-9ñáéíóú\s]{1,70})&Grado=(?P<grado>[0-9]{1,2})&Grupo=(?P<grupo>[A-Z]{1}))$",
-            p3RepUXCXMaeXGraXGrp),
+    re_path(r"^p3RepUXCXMaeXMatXGraXGrp/(?:ID_Carrera=(?P<id_carrera>[a-zA-Záéíóúñ]{,8})&Nombre_Maestro=(?P<nombre_maestro>[a-zA-Z_0-9ñáéíóú\s]{1,70})&ID_Materia=(?P<id_materia>[0-9]+)&Grado=(?P<grado>[0-9]{1,2})&Grupo=(?P<grupo>[A-Z]{1}))$",
+            p3RepUXCXMaeXMatXGraXGrp),
     re_path(r"^getVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$",
             getRegistroVGC),
     re_path(r"^addVGC/(?P<id_carrera>[a-zA-Záéíóúñ]{,8})$",
