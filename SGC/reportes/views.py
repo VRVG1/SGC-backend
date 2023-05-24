@@ -5,7 +5,7 @@ import os
 
 from django.http import FileResponse
 
-from materias.models import Carreras
+from materias.models import Carreras, Materias
 from usuarios.models import Usuarios
 from .models import Reportes, Generan, Alojan
 from .serializers import AlojanSerializer, ReportesSerializer, GeneranSerializer
@@ -32,6 +32,7 @@ import matplotlib
 from pathlib import Path
 import json
 from .pdf_pnc import PncPDF
+from .excel_vgc import VGCExcel
 
 # Create your views here.
 
@@ -1398,22 +1399,28 @@ def downloadRegistroPNC(request):
                             as_attachment=False)
     else:
         return Response(data={"Error": "No hay registros guardados"},
-                        status=status.HTTP_400_BAD_REQUEST)
+                        status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
-def p3RepUXCXMaeXGraXGrp(request, id_carrera, nombre_maestro, grado, grupo):
+def p3RepUXCXMaeXMatXGraXGrp(request,
+                             id_carrera,
+                             nombre_maestro,
+                             id_materia,
+                             grado,
+                             grupo):
     """
-    p3ReporteUnidad X Carrera X Maestro X Grado X Grupo
+    p3ReporteUnidad X Carrera X Maestro X Materia X Grado X Grupo
     """
     try:
         carrera = Carreras.objects.get(ID_Carrera=id_carrera)
         maestro = Usuarios.objects.get(Nombre_Usuario=nombre_maestro)
+        materia = Materias.objects.get(Q(pik=id_materia) & Q(Carrera=carrera))
 
-        asignan = Asignan.objects.filter(Q(ID_Usuario=maestro) &
-                                         Q(ID_Materia__Carrera=carrera) &
+        asignan = Asignan.objects.filter(Q(ID_Materia=materia) &
+                                         Q(ID_Usuario=maestro) &
                                          Q(Semestre=grado) &
                                          Q(Grupo=grupo))
     except Carreras.DoesNotExist:
@@ -1425,15 +1432,14 @@ def p3RepUXCXMaeXGraXGrp(request, id_carrera, nombre_maestro, grado, grupo):
     except Asignan.DoesNotExist:
         return Response({'Error': "Asignan no existe"},
                         status=status.HTTP_404_NOT_FOUND)
-    print("\n\n\n\t\tGeneran Relacionados")
     data_2_send = []
     try:
         for asignacion in asignan:
             generan = Generan.objects.filter(Q(ID_Asignan=asignacion))
             for generacion in generan:
-                print(generacion)
                 data_2_send.append({
                     "ID_Asignan": generacion.ID_Asignan.ID_Asignan,
+                    "ID_Reporte": generacion.ID_Reporte.ID_Reporte,
                     "Nombre_Profesor": generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
                     "Nombre_Materia:": generacion.ID_Asignan.ID_Materia.Nombre_Materia,
                     "Nombre_Reporte": generacion.ID_Reporte.Nombre_Reporte,
@@ -1448,6 +1454,11 @@ def p3RepUXCXMaeXGraXGrp(request, id_carrera, nombre_maestro, grado, grupo):
         return Response({'Error': "Generan no existe"},
                         status=status.HTTP_404_NOT_FOUND)
 
+    if len(data_2_send) == 0:
+        return Response(data={
+            "Error": "Temas no encontrados"
+            },
+            status=status.HTTP_404_NOT_FOUND)
     return Response(data_2_send, status=status.HTTP_200_OK)
 
 
@@ -1585,7 +1596,7 @@ def deleteRegistroVGC(request, id_carrera):
             # Se debe actualizar el numeroReporte de todos los reportes que se
             # encuentran despues del que fue eliminado
             registro_vgc["registro"][idx]["numeroReporte"] = registro_vgc["registro"][idx]["numeroReporte"] - 1
-        if reporte["numeroReporte"] == no_reporte_2_delete:
+        elif reporte["numeroReporte"] == no_reporte_2_delete:
             # Se toma el idx de aquel reporte cuyo atributo 'numeroReporte' es
             # igual al recibido
             idx_reporte_2_delete = idx
@@ -1610,11 +1621,29 @@ def deleteRegistroVGC(request, id_carrera):
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def vgcExcel(request, id_carrera):
     try:
-        Carreras.objects.get(ID_Carrera=id_carrera)
+        carrera = Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
         return Response(data={
             "Error": "Carrera no existe"
             },
             status=status.HTTP_400_BAD_REQUEST)
 
-    pass
+    cwd = os.getcwd()
+    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    if registro_vgc['lastReporteID'] < 1:
+        return Response(data={"Error": "No hay registros guardados"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    registro = registro_vgc["registro"]
+    buffer = io.BytesIO()
+    vgc_excel = VGCExcel(buffer, carrera.Nombre_Carrera)
+    vgc_excel.buildExcel(registro)
+    buffer.seek(0)
+    return FileResponse(buffer,
+                        filename='Formato para la Verificación de la Gestión del Curso.xlsx',
+                        as_attachment=True)
+

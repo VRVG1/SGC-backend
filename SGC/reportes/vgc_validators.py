@@ -17,7 +17,7 @@ REGISTRO_TYPE_ATTRIBUTES = {
 
 
 def checkEstructuraReporte(datos):
-    if datos.keys().length != REGISTRO_TYPE_ATTRIBUTES.length:
+    if len(datos.keys()) != len(REGISTRO_TYPE_ATTRIBUTES):
         return Response(data={
             "Error": "Número de atributos no concuerda."
             },
