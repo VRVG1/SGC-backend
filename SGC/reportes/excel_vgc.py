@@ -324,23 +324,3 @@ class VGCExcel:
             self.row_idx = self.row_idx + 1
         self.buildSheetFooter()
         self.workbook.close()
-
-
-registro = [
-    {
-        "numeroReporte": 1,
-        "nombreProfesor": "ISIC_01",
-        "asignatura": "Fundamentos de Programación",
-        "GradoGrupo": "X1B",
-        "tema": "Fundamentos de Programación - Grupo: B - Unidad: 2 - ISIC_01",
-        "semanaProgramada": "2023-04-25",
-        "verificacion": True,
-        "RCMRRC": True,
-        "indReprobacion": 19,
-        "CCEEID": False,
-        "observaciones": "Segundo reporte\n\n\nModificado el segundo reporte\n\n\nPRUEBA!!!"
-    }
-]
-# vgc_excel = VGCExcel('./vgc_prueba.xlsx',
-#                      'Ingeniería en Sistemas Computacionales')
-# vgc_excel.buildExcel(registro)
