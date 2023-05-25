@@ -1477,7 +1477,12 @@ def getRegistroVGC(request, id_carrera):
     cwd = os.getcwd()
     filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
     registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    # Por defecto la fecha de semanaDel será el día actual en el que se genera
+    # el registro
+    semanaDel_default = datetime.now().__str__().split(' ')[0]
     registro_vgc = {
+        'noSeguimiento': 1,
+        'semanaDel': semanaDel_default,
         'lastReporteID': 1,
         'registro': []
     }
@@ -1517,7 +1522,14 @@ def addRegistroVGC(request, id_carrera):
         return eval_res
 
     # Se reasigna a una nueva variable solo para dar contexto del resultado
-    newReporte = eval_res
+    newReporte = eval_res['newReporte']
+    # Se asignan los valores de numero de seguimiento y semanaDel que se
+    # recibio.
+    registro_vgc["noSeguimiento"] = eval_res["noSeguimiento"]
+    registro_vgc["semanaDel"] = eval_res["semanaDel"]
+
+    # Se incrementa el lastReporteID ya que se esta agregando un nuevo
+    # elemento
     registro_vgc["lastReporteID"] = registro_vgc["lastReporteID"] + 1
     registro_vgc["registro"].append(newReporte)
 
@@ -1640,7 +1652,10 @@ def vgcExcel(request, id_carrera):
 
     registro = registro_vgc["registro"]
     buffer = io.BytesIO()
-    vgc_excel = VGCExcel(buffer, carrera.Nombre_Carrera)
+    vgc_excel = VGCExcel(buffer,
+                         carrera.Nombre_Carrera,
+                         registro_vgc['noSeguimiento'],
+                         registro_vgc['semanaDel'])
     vgc_excel.buildExcel(registro)
     buffer.seek(0)
     return FileResponse(buffer,

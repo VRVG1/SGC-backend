@@ -2,6 +2,12 @@ from rest_framework.response import Response
 from rest_framework import status
 
 REGISTRO_TYPE_ATTRIBUTES = {
+    "noSeguimiento": int,
+    "semanaDel": str,
+    "newReporte": dict
+    }
+
+NEW_REPORTE_TYPE_ATTRIBUTES = {
     "numeroReporte": int,
     "nombreProfesor": str,
     "asignatura": str,
@@ -16,7 +22,7 @@ REGISTRO_TYPE_ATTRIBUTES = {
 }
 
 
-def checkEstructuraReporte(datos):
+def checkEstructuraAddRegistro(datos):
     if len(datos.keys()) != len(REGISTRO_TYPE_ATTRIBUTES):
         return Response(data={
             "Error": "Número de atributos no concuerda."
@@ -30,6 +36,23 @@ def checkEstructuraReporte(datos):
                 },
                 status=status.HTTP_400_BAD_REQUEST)
 
+    return checkEstructuraReporte(datos['newReporte'])
+
+
+def checkEstructuraReporte(datos):
+    if len(datos.keys()) != len(NEW_REPORTE_TYPE_ATTRIBUTES):
+        return Response(data={
+            "Error": "Número de atributos no concuerda."
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    for key in datos.keys():
+        if type(datos[key]) is not NEW_REPORTE_TYPE_ATTRIBUTES[key]:
+            return Response(data={
+                "Error": f"Tipo de dato no permitido para {key}"
+                },
+                status=status.HTTP_400_BAD_REQUEST)
+
     return True
 
 
@@ -38,12 +61,13 @@ def checkAddRegistroVGC(datos, registro_gral_vgc):
         return Response(data={"Error": "Estructura de datos no valida."},
                         status=status.HTTP_400_BAD_REQUEST)
 
-    check_struct_datos = checkEstructuraReporte(datos)
+    check_struct_datos = checkEstructuraAddRegistro(datos)
     if type(check_struct_datos) is Response:
         return check_struct_datos
 
+    new_reporte = datos["newReporte"]
     for reporte in registro_gral_vgc["registro"]:
-        if reporte["numeroReporte"] == datos["numeroReporte"]:
+        if reporte["numeroReporte"] == new_reporte["numeroReporte"]:
             return Response(data={
                 "Error": "Ya existe un reporte con ese numeroReporte"
                 },
@@ -83,7 +107,7 @@ def checkUpdateRegistroVGC(datos, registro_gral_vgc):
 
 
 def checkDeleteRegistroVGC(datos, registro_gral_vgc):
-    if type(datos) is not REGISTRO_TYPE_ATTRIBUTES["numeroReporte"]:
+    if type(datos) is not NEW_REPORTE_TYPE_ATTRIBUTES["numeroReporte"]:
         return Response(data={"Error": "Tipo de dato no valido."},
                         status=status.HTTP_400_BAD_REQUEST)
 

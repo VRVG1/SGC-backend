@@ -50,9 +50,11 @@ COLUMNS_WIDTHS = [
 
 
 class VGCExcel:
-    def __init__(self, fp, academia):
+    def __init__(self, fp, academia, no_seguimiento, semana_del):
         self.row_idx = 11
         self.academia = academia
+        self.no_seguimiento = no_seguimiento
+        self.semana_del = semana_del
         self.workbook = xlsxwriter.Workbook(fp)
         self.worksheet = self.workbook.add_worksheet('FORMATO')
 
@@ -224,9 +226,9 @@ class VGCExcel:
         self.worksheet.merge_range('M5:N5', SHEET_HEADER_DATA['pagina'], self.bold_left_border_format)
         self.worksheet.merge_range('A6:R6', SHEET_HEADER_DATA['encabezado'], self.header_normal_center_bottom_format)
         self.worksheet.write('B8', "SEGUIMIENTO No.", self.normal_right_bottom_format)
-        self.worksheet.write_blank('C8', None, self.border_bottom_format)
+        self.worksheet.write('C8', self.no_seguimiento, self.border_bottom_format)
         self.worksheet.write('D8', "SEMANA DEL")
-        self.worksheet.write_blank('E8', None, self.border_bottom_format)
+        self.worksheet.write('E8', self.semana_del, self.border_bottom_format)
         self.worksheet.merge_range('H8:I8', "ACADEMIA", self.normal_center_bottom_format)
         self.worksheet.merge_range('J8:L8', self.academia, self.border_bottom_format)
 
@@ -294,13 +296,13 @@ class VGCExcel:
     def buildSheetFooter(self):
         self.row_idx = self.row_idx + 2
         FOOTER_ROWS_HEIGHTS = [
-            15.75,  # [0] FILA 1
+            58.44,  # [0] FILA 1
             15,     # [1] FILA 2
             15      # [2] FILA 3
         ]
         # Se ajustan el alto de las filas que conformaran el pie de la hoja
         for idx in range(3):
-            self.worksheet.set_row(self.row_idx + idx,
+            self.worksheet.set_row(self.row_idx + idx - 1,
                                    FOOTER_ROWS_HEIGHTS[idx])
 
         self.worksheet.merge_range(f'B{self.row_idx}:C{self.row_idx}',
