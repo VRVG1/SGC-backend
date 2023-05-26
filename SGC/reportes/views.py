@@ -1237,18 +1237,40 @@ def addRegistroPNC(request):
     with open(registro_pnc_path, "r") as data_file:
         registro_pnc = json.load(data_file)
 
-    eval_res = checkAddRegistro(request.data, registro_pnc)
+    eval_res = checkAddRegistro(request.data)
     if type(eval_res) is Response:
         return eval_res
 
-    (lastPNCID, registro, has_reportes_registrados, registro_reporte_id, registro_pnc_id) = eval_res
+    (id_reporte, new_pnc) = eval_res
 
-    registro_pnc["lastPNCID"] = lastPNCID
-    if has_reportes_registrados:
-        registro_pnc["registro"]["reportesRegistrados"] = registro["reportesRegistrados"]
+    # Se da formato a los IDs de los registros (reporte y nuevo pnc)
+    # Se da formato al id de reporte recibido
+    formated_id_reporte = f"reporte_{id_reporte}"
+    # Se toma el ultimo valor de lastPNCID en el registro_pnc para dar valor
+    # al nuevo ID del pnc a agregar
+    new_id_pnc = f"pnc_{registro_pnc['lastPNCID']}"
 
-    registro_pnc["registro"][registro_reporte_id] = registro[registro_reporte_id]
-    registro_pnc["registro"][registro_pnc_id] = registro[registro_pnc_id]
+    # Se busca el id del reporte recibido dentro de
+    # registro_pnc ==> registro -> reportesRegistrados -> idsReportes
+    if formated_id_reporte not in registro_pnc["registro"]["reportesRegistrados"]["idsReportes"]:
+        # Si no existe el ID de reporte en el registro general, se agrega
+        # al final del arreglo 'idsReportes'
+        registro_pnc["registro"]["reportesRegistrados"]["idsReportes"].append(formated_id_reporte)
+        # Se procede a agregar el nuevo id de reporte en el registro con
+        # su unico pnc registrado (new_id_pnc)
+        registro_pnc["registro"][formated_id_reporte] = {
+                "linkedPNCs": [new_id_pnc]
+                }
+    else:
+        # Si el ID de reporte existe en el registro general, solo se agrega
+        # el nuevo id pnc a su arreglo 'linkedPNCs'
+        registro_pnc["registro"][formated_id_reporte]["linkedPNCs"].append(new_id_pnc)
+
+    # Se asigna el diccionario recibido con los datos del PNC al new_id_pnc
+    registro_pnc["registro"][new_id_pnc] = new_pnc
+
+    # Dado que se esta agregando un nuevo registro PNC se incrementa lastPNCID
+    registro_pnc["lastPNCID"] = registro_pnc["lastPNCID"] + 1
 
     with open(registro_pnc_path, "w") as data_file:
         json.dump(registro_pnc, data_file)
@@ -1272,52 +1294,44 @@ def updateRegistroPNC(request):
     if type(eval_res) is Response:
         return eval_res
 
-    (lastPNCID,
-     registro,
-     has_reportes_registrados,
-     reportes_ids,
-     pnc_id) = eval_res
-    # WARN: Que rollo con este registro ???
-    # registro
-    registro_pnc["lastPNCID"] = lastPNCID
-    if has_reportes_registrados:
-        registro_pnc["registro"]["reportesRegistrados"] = registro["reportesRegistrados"]
+    id_reporte = request.data['ID_reporte']
+    id_pnc = request.data['ID_pnc']
+    new_pnc = request.data['new_PNC']
 
-    # Actualizando noPNC de los reportes presentes despues del reporte a
-    # modificar
-    old_reporte_linkedPNCs = []
-    # Se toma el diccionarion del pnc a modificar del registro general
-    old_toChange_pnc = registro_pnc["registro"][pnc_id]
-    # Se toma el valor 'numeroPNC' del pnc a modificar
-    old_toChange_pnc_noPNC = old_toChange_pnc["numeroPNC"]
+    formated_id_reporte = f"reporte_{id_reporte}"
 
-    for reporte_id in reportes_ids:
-        # Si el ID del pnc a modificar no se encuentra dentro del linkedPNCs
-        # de uno de los reportes_ids se considerá como que es el reporte del
-        # cual se elimino dicho PNC (old reporte).
-        if pnc_id not in registro[reporte_id]["linkedPNCs"]:
-            # Se copia el viejo linkedPNCs del reporte_id del registro general
-            old_reporte_linkedPNCs = registro_pnc["registro"][reporte_id]["linkedPNCs"].copy()
+    if eval_res == 4:
+        id_old_reporte = request.data['ID_old_reporte']
+        # Se da formato al id del reporte viejo
+        formated_id_old_reporte = f"reporte_{id_old_reporte}"
+        linkedPNCs = registro_pnc['registro'][formated_id_old_reporte]['linkedPNCs']
+        # se busca el indice en el que se encuentra el PNC
+        idx_id_pnc_in_old_reporte = linkedPNCs.index(id_pnc)
 
-        # Actualiza el valor del reporte_id en registro_pnc por el que se
-        # encuentra en registro
-        registro_pnc["registro"][reporte_id] = registro[reporte_id]
+        for idx, iter_id_pnc in enumerate(linkedPNCs):
+            if idx > idx_id_pnc_in_old_reporte:
+                # Se procede a reducir en 1 el numeroPNC de aquellos registros
+                # PNC's agregados despues de aquel que se esta cambiando
+                numero_pnc = registro_pnc['registro'][iter_id_pnc]['numeroPNC']
+                registro_pnc['registro'][iter_id_pnc]['numeroPNC'] = numero_pnc - 1
+        # se elimina el PNC de la lista 'linkedPNCs' en el reporte viejo
+        registro_pnc['registro'][formated_id_old_reporte]['linkedPNCs'].pop(idx_id_pnc_in_old_reporte)
 
-    # Se procede a iterar la lista de linkedPNCs obtenida del old_reporte.
-    # Si como tal no existia old_reporte dentro de registro, entonces
-    # old_reporte_linkedPNCs es una lista vacía, por lo que no se ejecutaría
-    # el bloque dentro del for
-    for old_pnc_id in old_reporte_linkedPNCs:
-        # Asigna el valor de numeroPNC del reporte cuyo id es old_pnc_id
-        old_pnc_id_numeroPNC = registro_pnc["registro"][old_pnc_id]["numeroPNC"]
-        # Si el numeroPNC de old_pnc_id es mayor al del pnc a modificar se
-        # decrementa en 1 su valor
-        if old_pnc_id_numeroPNC > old_toChange_pnc_noPNC:
-            registro_pnc["registro"][old_pnc_id]["numeroPNC"] = old_pnc_id_numeroPNC - 1
+        # Si no existe el id de reporte en el registro de reportes, es
+        # agregado
+        if formated_id_reporte not in registro_pnc['registro']['reportesRegistrados']['idsReportes']:
+            registro_pnc['registro']['reportesRegistrados']['idsReportes'].append(formated_id_reporte)
+            registro_pnc['registro'][formated_id_reporte] = {
+                    'linkedPNCs': [id_pnc]
+                }
+        else:
+            registro_pnc['registro'][formated_id_reporte]['linkedPNCs'].append(id_pnc)
 
-    # Actualiza el valor de pnc_id en registro_pnc por el que se encuentra en
-    # registro
-    registro_pnc["registro"][pnc_id] = registro[pnc_id]
+    # Si eval_res == 3 quiere decir que se esta modificando el registro PNC
+    # de un reporte con presencia en el registro_pnc. Por lo que no se
+    # tiene que efectuar ningún cambio en los 'linkedPNCs' de dicho reporte,
+    # Solo se cambiará el contenido del PNC.
+    registro_pnc['registro'][id_pnc] = new_pnc
 
     with open(registro_pnc_path, "w") as data_file:
         json.dump(registro_pnc, data_file)
@@ -1339,20 +1353,30 @@ def deleteRegistroPNC(request):
     if type(eval_res) is Response:
         return eval_res
 
-    (registro, pnc_id, reporte_id) = eval_res
+    (id_reporte, id_pnc) = eval_res
+    formated_id_reporte = f"reporte_{id_reporte}"
 
-    old_toChange_pnc = registro_pnc["registro"][pnc_id]
-    old_toChange_pnc_noPNC = old_toChange_pnc["numeroPNC"]
+    # Se toma la lista de PNCs relacionados con el id_reporte
+    linkedPNC = registro_pnc['registro'][formated_id_reporte]['linkedPNCs']
+    # Se obtiene el idx en linkedPNC del PNC a eliminar
+    idx_of_id_pnc_in_linkedPNC = linkedPNC.index(id_pnc)
+    for idx, iter_id_pnc in enumerate(linkedPNC):
+        # Se procede a iterar la lista de PNCs relacionados con el reporte
+        if idx > idx_of_id_pnc_in_linkedPNC:
+            # Si el idx iterado es mayor al idx del PNC a eliminar significa
+            # que idx esta sobre aquellos PNC's registrados despues de quel
+            # que será eliminado por lo que...
+            # Se procede a copiar su numeroPNC
+            numeroPNC = registro_pnc['registro'][iter_id_pnc]['numeroPNC']
+            # Y a reducir en 1 este mismo.
+            registro_pnc['registro'][iter_id_pnc]['numeroPNC'] = numeroPNC - 1
 
-    old_reporte_linkedPNCs = registro_pnc["registro"][reporte_id]["linkedPNCs"].copy()
+    # Terminado el ciclo, se procede a eliminar de la lista 'linkedPNC' del
+    # id_reporte el PNC a eliminar.
+    registro_pnc['registro'][formated_id_reporte]['linkedPNCs'].pop(idx_of_id_pnc_in_linkedPNC)
+    # Por ultimo, se elimina el registro PNC del registro_pnc
+    registro_pnc['registro'].pop(id_pnc)
 
-    for old_pnc_id in old_reporte_linkedPNCs:
-        old_pnc_id_numeroPNC = registro_pnc["registro"][old_pnc_id]["numeroPNC"]
-        if old_pnc_id_numeroPNC > old_toChange_pnc_noPNC:
-            registro_pnc["registro"][old_pnc_id]["numeroPNC"] = old_pnc_id_numeroPNC - 1
-
-    registro_pnc["registro"][reporte_id] = registro[reporte_id]
-    registro_pnc["registro"].pop(pnc_id)
     with open(registro_pnc_path, "w") as data_file:
         json.dump(registro_pnc, data_file)
 
