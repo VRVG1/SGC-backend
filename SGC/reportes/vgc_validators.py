@@ -2,8 +2,6 @@ from rest_framework.response import Response
 from rest_framework import status
 
 REGISTRO_TYPE_ATTRIBUTES = {
-    "noSeguimiento": int,
-    "semanaDel": str,
     "newReporte": dict
     }
 

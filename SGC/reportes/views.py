@@ -1509,7 +1509,7 @@ def p3RepUXCXMaeXMatXGraXGrp(request,
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
-def getRegistroVGC(request, id_carrera):
+def getRegistroVGC(request, id_carrera, seguimiento_no, semana):
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1519,14 +1519,13 @@ def getRegistroVGC(request, id_carrera):
             status=status.HTTP_400_BAD_REQUEST)
 
     cwd = os.getcwd()
-    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
     registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
     # Por defecto la fecha de semanaDel será el día actual en el que se genera
     # el registro
-    semanaDel_default = datetime.now().__str__().split(' ')[0]
     registro_vgc = {
-        'noSeguimiento': 1,
-        'semanaDel': semanaDel_default,
         'lastReporteID': 1,
         'registro': []
     }
@@ -1546,7 +1545,7 @@ def getRegistroVGC(request, id_carrera):
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
-def addRegistroVGC(request, id_carrera):
+def addRegistroVGC(request, id_carrera, seguimiento_no, semana):
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1556,7 +1555,9 @@ def addRegistroVGC(request, id_carrera):
             status=status.HTTP_400_BAD_REQUEST)
 
     cwd = os.getcwd()
-    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
     registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
     with open(registro_vgc_path, "r") as data_file:
         registro_vgc = json.load(data_file)
@@ -1567,10 +1568,6 @@ def addRegistroVGC(request, id_carrera):
 
     # Se reasigna a una nueva variable solo para dar contexto del resultado
     newReporte = eval_res['newReporte']
-    # Se asignan los valores de numero de seguimiento y semanaDel que se
-    # recibio.
-    registro_vgc["noSeguimiento"] = eval_res["noSeguimiento"]
-    registro_vgc["semanaDel"] = eval_res["semanaDel"]
 
     # Se incrementa el lastReporteID ya que se esta agregando un nuevo
     # elemento
@@ -1588,7 +1585,7 @@ def addRegistroVGC(request, id_carrera):
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
-def updateRegistroVGC(request, id_carrera):
+def updateRegistroVGC(request, id_carrera, seguimiento_no, semana):
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1598,7 +1595,9 @@ def updateRegistroVGC(request, id_carrera):
             status=status.HTTP_400_BAD_REQUEST)
 
     cwd = os.getcwd()
-    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
     registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
     with open(registro_vgc_path, "r") as data_file:
         registro_vgc = json.load(data_file)
@@ -1624,7 +1623,7 @@ def updateRegistroVGC(request, id_carrera):
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
-def deleteRegistroVGC(request, id_carrera):
+def deleteRegistroVGC(request, id_carrera, seguimiento_no, semana):
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1634,7 +1633,9 @@ def deleteRegistroVGC(request, id_carrera):
             status=status.HTTP_400_BAD_REQUEST)
 
     cwd = os.getcwd()
-    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
     registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
     with open(registro_vgc_path, "r") as data_file:
         registro_vgc = json.load(data_file)
@@ -1675,7 +1676,7 @@ def deleteRegistroVGC(request, id_carrera):
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
-def vgcExcel(request, id_carrera):
+def vgcExcel(request, id_carrera, seguimiento_no, semana):
     try:
         carrera = Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1685,7 +1686,9 @@ def vgcExcel(request, id_carrera):
             status=status.HTTP_400_BAD_REQUEST)
 
     cwd = os.getcwd()
-    filename_registro_vgc = f"registro_vgc_{id_carrera}.json"
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
     registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
     with open(registro_vgc_path, "r") as data_file:
         registro_vgc = json.load(data_file)
@@ -1698,11 +1701,10 @@ def vgcExcel(request, id_carrera):
     buffer = io.BytesIO()
     vgc_excel = VGCExcel(buffer,
                          carrera.Nombre_Carrera,
-                         registro_vgc['noSeguimiento'],
-                         registro_vgc['semanaDel'])
+                         seguimiento_no,
+                         semana)
     vgc_excel.buildExcel(registro)
     buffer.seek(0)
     return FileResponse(buffer,
                         filename='Formato para la Verificación de la Gestión del Curso.xlsx',
                         as_attachment=True)
-
