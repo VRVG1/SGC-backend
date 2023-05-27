@@ -338,13 +338,14 @@ class PncPDF(FPDF):
                 row_height_lines = len(output)
 
         for line in range(row_height_lines):
-            if line == 0:
-                border = "LTR"
-            elif line < row_height_lines - 1:
+            if line < row_height_lines - 1 and line != 0:
                 border = "LR"
-            else:
+            elif line == row_height_lines - 1:
                 border = "LBR"
                 row_height = gral_row_height * 3
+            else:
+                # if line == 0:
+                border = "LTR"
 
             for col_idx in range(len(COLUM_HEADERS)):
                 if lines_in_row[col_idx] > line:

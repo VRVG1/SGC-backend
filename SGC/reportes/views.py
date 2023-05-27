@@ -1393,7 +1393,26 @@ def downloadRegistroPNC(request):
     with open(registro_pnc_path, "r") as data_file:
         registro_pnc = json.load(data_file)
 
-    if len(registro_pnc["registro"]) > 1:
+    has_pncs = False
+    # Se verifica que existan reportes dentro del registro general.
+    if len(registro_pnc["registro"]["reportesRegistrados"]["idsReportes"]) == 0:
+        return Response(data={
+            "Error": "No existen reportes registrados por el momento."
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    # Si hay reportes, se procede a iterar la lista de ids de reportes
+    # registrados
+    for id_reporte in registro_pnc["registro"]["reportesRegistrados"]["idsReportes"]:
+        # Si existe por lo menos un elemento dentro de los PNCs relacionados
+        # a un reporte se activa la flag 'has_pncs' y se rompe el ciclo
+        if len(registro_pnc["registro"][id_reporte]["linkedPNCs"]) != 0:
+            has_pncs = True
+            break
+
+    # Se evalua si se tiene PNCs registrados
+    if has_pncs:
+        # Si se tiene, se procede a construir el archivo PDF
         registro = registro_pnc["registro"]
         ids_reportes = registro["reportesRegistrados"]["idsReportes"]
         nombre_reporte = ""
@@ -1412,10 +1431,11 @@ def downloadRegistroPNC(request):
             nombre_reporte = reporte.Nombre_Reporte
             fecha_reporte = reporte.Fecha_Entrega
             linked_pncs = registro[id_reporte]["linkedPNCs"]
-            pdf.printReporte(registro,
-                             linked_pncs,
-                             nombre_reporte,
-                             fecha_reporte)
+            if len(linked_pncs) != 0:
+                pdf.printReporte(registro,
+                                 linked_pncs,
+                                 nombre_reporte,
+                                 fecha_reporte)
         pdf.output(buffer)
         buffer.seek(0)
         return FileResponse(buffer,
