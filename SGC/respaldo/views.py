@@ -32,7 +32,7 @@ class MakeBackup(generics.ListAPIView):
         print(f'\n\n\n{os.getcwd()}\n\n\n')
         try:
             os.mkdir('./media')
-            print('Se creo el directorio de media.')
+            print('Se creo el directorio media/')
         except FileExistsError:
             print('Ya existe el directorio media.')
         except FileNotFoundError as e:
@@ -40,15 +40,21 @@ class MakeBackup(generics.ListAPIView):
 
         try:
             os.makedirs('./var/respaldo')
-            print('Se crearon los directorios ./var/ y ./var/respaldo/')
+            print('Se crearon los directorios var/ y var/respaldo/')
         except FileExistsError:
-            print('Ya existen los directorios')
+            print('Ya existen los directorios var/ y var/respaldo/')
+
+        try:
+            os.mkdir('./static')
+            print('Se creo el directorio static/')
+        except FileExistsError:
+            print('Ya existe el directorio static/')
 
         try:
             os.mkdir('./var/backups')
-            print('Se creo el directorio ./var/backups/')
+            print('Se creo el directorio var/backups/')
         except FileExistsError:
-            print('Ya existe el directorio ./var/backups/')
+            print('Ya existe el directorio var/backups/')
         except FileNotFoundError as e:
             raise e
         print('Creando respaldo de la base de datos...')
@@ -71,9 +77,20 @@ class MakeBackup(generics.ListAPIView):
 
         with ZipFile(f'./var/respaldo/{backup_filename}', 'w') as backup_zip:
             with Path('./var/backups/') as backup_path:
+                print('Respaldando los archivos en "var/backups/"...')
                 for file in backup_path.iterdir():
                     if file.is_file():
                         backup_zip.write(file.__str__(), arcname=file.name)
+            print('Respaldo de los archivos en "var/backups/" realizado con exito')
+
+            # TODO: Crear un folder 'static' dentro de 'backup_zip' y guardar
+            #       en el todos los archivos del directorio './static/'
+            with Path('./static/') as static_files_path:
+                print('Respaldando los archivos en "static/"...')
+                for file in static_files_path.iterdir():
+                    if file.is_file():
+                        backup_zip.write(file.__str__(), arcname=file.name)
+            print('Respaldo de los archivos en "static/" realizado con exito')
 
             print('Archivos de respaldo comprimidos con exito.')
 
