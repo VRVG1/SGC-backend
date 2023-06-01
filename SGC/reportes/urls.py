@@ -36,7 +36,11 @@ from .views import p2MaestrosPuntual,\
         addRegistroVGC,\
         updateRegistroVGC,\
         deleteRegistroVGC,\
-        vgcExcel
+        vgcExcel,\
+        getMailGroups,\
+        addMailGroup,\
+        sendMailToGroup,\
+        testMail
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -92,4 +96,8 @@ urlpatterns = [
             deleteRegistroVGC),
     re_path(r"^VGC-Excel/(?:ID_Carrera=(?P<id_carrera>[a-zA-Záéíóúñ]{,8})&Seguimiento_No=(?P<seguimiento_no>[1-9]+[0-9]*)&Semana=(?P<semana>4|8|12|16))$",
             vgcExcel),
+    path('getMailGroups', getMailGroups),
+    path('addMailGroup', addMailGroup),
+    path('sendMailToGroup', sendMailToGroup),
+    path('test-mail', testMail),
 ]

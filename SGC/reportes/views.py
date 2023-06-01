@@ -17,7 +17,7 @@ from rest_framework.authentication import TokenAuthentication
 from materias.models import Asignan
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
-from .tasks import sendMensaje
+from .tasks import sendMensaje, sendTestMail, sendGroupMail
 from .pnc_validators import checkAddRegistro,\
         checkUpdateRegistro,\
         checkDeleteRegistro
@@ -1708,3 +1708,110 @@ def vgcExcel(request, id_carrera, seguimiento_no, semana):
     return FileResponse(buffer,
                         filename='Formato para la Verificación de la Gestión del Curso.xlsx',
                         as_attachment=True)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def testMail(request):
+    sendTestMail()
+    return Response(data={'Status': 'OK'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def getMailGroups(request):
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json";
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    registro_mail_groups = []
+
+    if registro_mail_groups_path.exists() and registro_mail_groups_path.is_file():
+        data_file = open(registro_mail_groups_path, "r")
+        registro_mail_groups = json.load(data_file)
+    else:
+        print(f"Creando {registro_mail_groups_path}...")
+        data_file = open(registro_mail_groups_path, "w")
+        json.dump(registro_mail_groups, data_file)
+
+    print("\n\n")
+    print(registro_mail_groups)
+    return Response(data=registro_mail_groups, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def addMailGroup(request):
+    print(request.data)
+
+    # TODO: validar los datos recibidos
+    new_mail_group = request.data
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path) as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    registro_mail_groups.append(new_mail_group)
+    print(registro_mail_groups)
+
+    with open(registro_mail_groups_path, "w") as data_file:
+        json.dump(registro_mail_groups, data_file)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def sendMailToGroup(request):
+
+    # TODO: Validar los datos recibidos
+    msg = request.data['msg']
+    groups = request.data['grupos']
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path, 'r') as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    mail_groups = []
+    for mail_group in registro_mail_groups:
+        if mail_group['groupName'] in groups:
+            mail_groups.append(mail_group)
+
+    users_info = []
+    try:
+        for mail_group in mail_groups:
+            for suscrito in mail_group['suscritos']:
+                # id: int
+                # nombre: str
+                usuario = Usuarios.objects.get(ID_Usuario=suscrito['id'],
+                                               Nombre_Usuario=suscrito['nombre'])
+                nombre = usuario.Nombre_Usuario
+                correo = usuario.CorreoE
+                user_info = (nombre, correo)
+                users_info.append(user_info)
+            # sendGroupMail.delay(msg, correos_usuarios)
+            sendGroupMail(msg, users_info)
+            correos_usuarios = []
+    except Usuarios.DoesNotExist:
+        return Response(data={
+            "Error": "Usuario no existe."
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)
