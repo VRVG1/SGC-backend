@@ -173,12 +173,12 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = 'reportesreminderitcg@gmail.com'
 
 with open('./mail.txt') as i:
-   EMAIL_HOST_PASSWORD = i.read().strip()
+    EMAIL_HOST_PASSWORD = i.read().strip()
 # EMAIL_HOST_PASSWORD = os.environ['mail'].strip()
 CELERY_BEAT_SCHEDULE = {
     'enviarmail': {
         'task': 'tareaconjunta',
-        'schedule': crontab(hour=0, minute=5),
+        'schedule': crontab(hour=0, minute=5),  # hour, minute -> 12:05 am
     }
 }
 
