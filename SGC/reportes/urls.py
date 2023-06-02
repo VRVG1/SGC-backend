@@ -41,8 +41,7 @@ from .views import p2MaestrosPuntual,\
         addMailGroup,\
         updateMailGroup,\
         deleteMailGroup,\
-        sendMailToGroup,\
-        testMail
+        sendMailToGroup
 
 urlpatterns = [
     path('reportes', ReportesView.as_view()),
@@ -103,5 +102,4 @@ urlpatterns = [
     path('updateMailGroup', updateMailGroup),
     path('deleteMailGroup', deleteMailGroup),
     path('sendMailToGroup', sendMailToGroup),
-    path('test-mail', testMail),
 ]

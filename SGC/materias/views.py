@@ -1633,5 +1633,8 @@ def p2AllCarrerasPDF(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def getGrupos(request, query):
+    u"""View que retorna todos los grupos que pueden existir en la DB.
+    (ADMIN, DOCENTE)
+    """
     if request.method == 'GET':
         return Response(data=Asignan.grupos, status=status.HTTP_200_OK)

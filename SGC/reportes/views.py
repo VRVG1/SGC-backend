@@ -17,7 +17,7 @@ from rest_framework.authentication import TokenAuthentication
 from materias.models import Asignan
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
-from .tasks import sendMensaje, sendTestMail, sendGroupMail
+from .tasks import sendMensaje, sendGroupMail
 from .pnc_validators import checkAddRegistro,\
         checkUpdateRegistro,\
         checkDeleteRegistro
@@ -397,7 +397,7 @@ def AdminSendMail(request):
 
             try:
                 msg = request.data['msg']
-                sendMensaje.delay(msg, False, usuario.CorreoE)
+                sendMensaje.delay(msg, False, usuario)
                 return Response({'Exito': 'Mensaje enviado'}, status=status.HTTP_202_ACCEPTED)
             except:
                 return Response({'Error': 'Error al enviar el mensaje'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1074,6 +1074,14 @@ def p2MaestrosTardePDF(request, query):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p3ReprobacionMaestro(request, query):
+    u"""View filtro que retorna el indice de reprobación por maestro de una
+    carrera e información relacionada.
+    (ADMIN)
+
+    query -- String que conteine dos valores divididos por un '-':
+        [0] -> Nombre del Maestro
+        [1] -> Nombre de la Carrera
+    """
     splitted = query.split("-")
     try:
         generan = Generan.objects.filter(Q(ID_Asignan__ID_Usuario__Nombre_Usuario=splitted[0]),
@@ -1104,6 +1112,14 @@ def p3ReprobacionMaestro(request, query):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p3ReprobacionMateria(request, query):
+    u"""View filtro que retorna el indice de reprobación por materia de una
+    carrera e información relacionada.
+    (ADMIN)
+
+    query -- String que contiene dos valores divididos por un '-':
+        [0] -> Nombre de la Materia
+        [1] -> Nombre de la Carrera
+    """
     splitted = query.split("-")
     try:
         generan = Generan.objects.filter(Q(ID_Asignan__ID_Materia__Nombre_Materia=splitted[0]),
@@ -1133,6 +1149,14 @@ def p3ReprobacionMateria(request, query):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p3ReprobacionGrupo(request, query):
+    u"""View filtro que retorna el indice de reprobación por grupo de una
+    carrera e información relacionada.
+    (ADMIN)
+
+    query -- String que contiene dos valores divididos por un '-':
+        [0] -> Grupo
+        [1] -> Nombre de la Carrera
+    """
     splitted = query.split("-")
     try:
         generan = Generan.objects.filter(Q(ID_Asignan__Grupo=splitted[0]),
@@ -1162,6 +1186,15 @@ def p3ReprobacionGrupo(request, query):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def p3IndiceEntregaReportesCarrera(request, nombre_reporte, nombre_carrera):
+    u"""View filtro que retorna, además del indice de entrega de reportes, la
+    información relacionada a los argumentos de la misma.
+    (ADMIN)
+
+    nombre_reporte -- Nombre del reporte del cual se esta buscando sus indices
+                      de entrega.
+    nombre_carrera -- Nombre de la carrera de la cual se esta filtrando el
+                      indice de entrega de reportes.
+    """
     if request.method == 'GET':
         if nombre_reporte == "" or nombre_carrera == "":
             return Response({'Error': "Argumento vacio"},
@@ -1199,9 +1232,10 @@ def p3IndiceEntregaReportesCarrera(request, nombre_reporte, nombre_carrera):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def getRegistroPNC(request):
-    # TODO: Hacer que busque todos los grupos que presenten un indice de
-    #       reprobación arriba del 62% o un desfase de dos semanas en relación
-    #       con la fechaEntrega del Reporte
+    u"""View que retorna el registro general de PNCs. En caso de no existir, el
+    sistema lo crea.
+    (ADMIN)
+    """
     cwd = os.getcwd()
     filename_registro_pnc = "registro_pnc.json"
     registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
@@ -1231,6 +1265,23 @@ def getRegistroPNC(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def addRegistroPNC(request):
+    u"""View que permite agregar un nuevo reporte PNC al registro general de
+    PNC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'ID_reporte': int,
+        'new_PNC': {
+            'numeroPNC': int,
+            'folio': str,
+            'fechaRegistro': str,
+            'especIncumplida': str,
+            'accionImplantada': str,
+            'isEliminaPNC': bool
+        }
+    """
     cwd = os.getcwd()
     filename_registro_pnc = "registro_pnc.json"
     registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
@@ -1284,6 +1335,26 @@ def addRegistroPNC(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def updateRegistroPNC(request):
+    u"""View que permite actualizar un reporte PNC del registro general de PNC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'ID_reporte': int
+        'ID_pnc': str
+        'new_PNC': {
+                'numeroPNC': int,
+                'folio': str,
+                'fechaRegistro': str,
+                'especIncumplida': str,
+                'accionImplantada': str,
+                'isEliminaPNC': bool
+        }
+
+        puede contener el atributo:
+        'ID_old_reporte': int
+    """
     cwd = os.getcwd()
     filename_registro_pnc = "registro_pnc.json"
     registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
@@ -1343,6 +1414,15 @@ def updateRegistroPNC(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def deleteRegistroPNC(request):
+    u"""View que permite eliminar un reporte PNC del registro general de PNC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'ID_reporte': int
+        'ID_pnc': str
+    """
     cwd = os.getcwd()
     filename_registro_pnc = "registro_pnc.json"
     registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
@@ -1387,6 +1467,9 @@ def deleteRegistroPNC(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def downloadRegistroPNC(request):
+    u"""View encargada de convertir el registro PNC a formato PDF.
+    (ADMIN)
+    """
     cwd = os.getcwd()
     filename_registro_pnc = "registro_pnc.json"
     registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
@@ -1455,8 +1538,17 @@ def p3RepUXCXMaeXMatXGraXGrp(request,
                              id_materia,
                              grado,
                              grupo):
-    """
-    p3ReporteUnidad X Carrera X Maestro X Materia X Grado X Grupo
+    u"""View filtro que retorna la información relacionada a los argumentos de
+    la misma.
+         p3ReporteUnidad X Carrera X Maestro X Materia X Grado X Grupo
+
+        id_carrera -- ID de la Carrera de la que se va a consultar
+        nombre_maestro -- Nombre de un profesor
+        id_materia -- ID de la Materia que se encuentra relacionada a
+                      id_carrera
+        grado -- Semestre del cual se busca la asignación de materia al
+                 profesor
+        grupo -- Grupo al cual se esta asignada dicha materia del profesor
     """
     try:
         carrera = Carreras.objects.get(ID_Carrera=id_carrera)
@@ -1510,6 +1602,15 @@ def p3RepUXCXMaeXMatXGraXGrp(request,
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def getRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que retorna el registro VGC especificado. En caso de no existir el
+    registro que se busca, lo crea.
+    (ADMIN)
+
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1546,6 +1647,29 @@ def getRegistroVGC(request, id_carrera, seguimiento_no, semana):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def addRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que permite agregar un nuevo reporte VGC en un registro especifico
+    de VGC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'numeroReporte': int
+        'nombreProfesor': str
+        'asignatura': str
+        'GradoGrupo': str
+        'tema': str
+        'semanaProgramada': str
+        'verificacion': bool
+        'RCMRRC': bool
+        'indReprobacion': int
+        'CCEEID': bool
+        'observaciones': str
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1586,6 +1710,31 @@ def addRegistroVGC(request, id_carrera, seguimiento_no, semana):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def updateRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que permite actualizar un reporte VGC en un registro especifico de
+    VGC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene el atributo:
+        'newReporte': {
+            'numeroReporte': int
+            'nombreProfesor': str
+            'asignatura': str
+            'GradoGrupo': str
+            'tema': str
+            'semanaProgramada': str
+            'verificacion': bool
+            'RCMRRC': bool
+            'indReprobacion': int
+            'CCEEID': bool
+            'observaciones': str
+        }
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1624,6 +1773,18 @@ def updateRegistroVGC(request, id_carrera, seguimiento_no, semana):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def deleteRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que permite eliminar un reporte VGC de un registro especifico de
+    VGC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene un unico atributo: 'numeroReporte'
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
     try:
         Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1677,6 +1838,15 @@ def deleteRegistroVGC(request, id_carrera, seguimiento_no, semana):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, AdminDocentePermission])
 def vgcExcel(request, id_carrera, seguimiento_no, semana):
+    u"""View encargada de convertir un registro especifico de VGC a formato
+    xlsx.
+    (ADMIN)
+
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
     try:
         carrera = Carreras.objects.get(ID_Carrera=id_carrera)
     except Carreras.DoesNotExist:
@@ -1713,17 +1883,13 @@ def vgcExcel(request, id_carrera, seguimiento_no, semana):
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, OnlyAdminPermission])
-def testMail(request):
-    sendTestMail()
-    return Response(data={'Status': 'OK'}, status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated, OnlyAdminPermission])
 def getMailGroups(request):
+    u"""View que retorna el registro de grupos de correos. En caso de no existir
+    crea desde cero el registro.
+    (ADMIN)
+    """
     cwd = os.getcwd()
-    filename = "registro_mail_groups.json";
+    filename = "registro_mail_groups.json"
     registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
 
     registro_mail_groups = []
@@ -1745,6 +1911,14 @@ def getMailGroups(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, OnlyAdminPermission])
 def addMailGroup(request):
+    u"""View que permite agregar un grupo de correos al registro.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene dos atributos: 'groupName' y
+                    'suscritos'
+    """
     print(request.data)
 
     # TODO: validar los datos recibidos
@@ -1778,6 +1952,14 @@ def addMailGroup(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, OnlyAdminPermission])
 def updateMailGroup(request):
+    u"""View que permite actualizar un grupo de correos del registro.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene dos atributos: 'groupName' y
+                    'suscritos'
+    """
     print('\n\n\n\t\tGrupo a modificar:')
     print(request.data)
 
@@ -1813,6 +1995,13 @@ def updateMailGroup(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, OnlyAdminPermission])
 def deleteMailGroup(request):
+    u"""View que permite eliminar un grupo de correos del registro.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene un unico atributo: 'groupName'
+    """
     print('\n\n\n\t\tGrupo a eliminar:')
     print(request.data)
 
@@ -1851,7 +2040,15 @@ def deleteMailGroup(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, OnlyAdminPermission])
 def sendMailToGroup(request):
+    u"""View cuya funcion es envíar correos a todos aquellos usuarios que forman
+    parte de un grupo de correos.
+    (ADMIN)
 
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Lista de strings que representan el atributo 'groupName' de
+                    un un grupo de correos registrado.
+    """
     # TODO: Validar los datos recibidos
     print('\n\n\nHoal')
     msg = request.data['msg']
@@ -1891,6 +2088,11 @@ def sendMailToGroup(request):
     except Usuarios.DoesNotExist:
         return Response(data={
             "Error": "Usuario no existe."
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return Response(data={
+            "Error": "Error al enviar el mensaje"
             },
             status=status.HTTP_400_BAD_REQUEST)
 
