@@ -1758,7 +1758,85 @@ def addMailGroup(request):
         registro_mail_groups = json.load(data_file)
 
     registro_mail_groups.append(new_mail_group)
+    print('\n\n\n\n\t\tNuevo Grupo agregado')
+    print('\n\tGrupo Agregado:')
+    print(new_mail_group)
+    print('\n\tRegistro de Grupos:')
     print(registro_mail_groups)
+    print('\n\n\n')
+
+    with open(registro_mail_groups_path, "w") as data_file:
+        json.dump(registro_mail_groups, data_file)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def updateMailGroup(request):
+    print('\n\n\n\t\tGrupo a modificar:')
+    print(request.data)
+
+    mail_group_name = request.data['groupName']
+    group_suscribers = request.data['suscritos']
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path) as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    for idx, grupo in enumerate(registro_mail_groups):
+        if grupo['groupName'] == mail_group_name:
+            registro_mail_groups[idx]['suscritos'] = group_suscribers
+            break
+
+    print('\n\n\n\tRegistro de grupos despues de modificar:')
+    print(registro_mail_groups)
+    print('\n\n\n\n')
+
+    with open(registro_mail_groups_path, "w") as data_file:
+        json.dump(registro_mail_groups, data_file)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def deleteMailGroup(request):
+    print('\n\n\n\t\tGrupo a eliminar:')
+    print(request.data)
+
+    mail_group_name = request.data['groupName']
+    idx_of_group = -1
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path) as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    for idx, grupo in enumerate(registro_mail_groups):
+        if grupo['groupName'] == mail_group_name:
+            idx_of_group = idx
+            break
+
+    if idx_of_group != -1:
+        registro_mail_groups.pop(idx_of_group)
+
+    print('\n\n\n\tRegistro de grupos despues de eliminar:')
+    print(registro_mail_groups)
+    print('\n\n\n\n')
 
     with open(registro_mail_groups_path, "w") as data_file:
         json.dump(registro_mail_groups, data_file)

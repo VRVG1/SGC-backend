@@ -39,6 +39,8 @@ from .views import p2MaestrosPuntual,\
         vgcExcel,\
         getMailGroups,\
         addMailGroup,\
+        updateMailGroup,\
+        deleteMailGroup,\
         sendMailToGroup,\
         testMail
 
@@ -98,6 +100,8 @@ urlpatterns = [
             vgcExcel),
     path('getMailGroups', getMailGroups),
     path('addMailGroup', addMailGroup),
+    path('updateMailGroup', updateMailGroup),
+    path('deleteMailGroup', deleteMailGroup),
     path('sendMailToGroup', sendMailToGroup),
     path('test-mail', testMail),
 ]
