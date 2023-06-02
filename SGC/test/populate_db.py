@@ -1,6 +1,6 @@
-from django_setup import initWorkspace
-
-initWorkspace()
+# from django_setup import initWorkspace
+# 
+# initWorkspace()
 
 from rest_framework.authtoken.models import Token
 
@@ -210,7 +210,7 @@ def populateMateriasTable():
 
 
 def addAdmin():
-    data_file = open("./superuserdata.json", "r")
+    data_file = open("./test/superuserdata.json", "r")
     superuser_data = json.load(data_file)
     username = superuser_data['username']
     first_name = superuser_data['first_name']
