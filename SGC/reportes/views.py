@@ -1853,6 +1853,7 @@ def deleteMailGroup(request):
 def sendMailToGroup(request):
 
     # TODO: Validar los datos recibidos
+    print('\n\n\nHoal')
     msg = request.data['msg']
     groups = request.data['grupos']
 
@@ -1864,25 +1865,29 @@ def sendMailToGroup(request):
         registro_mail_groups = json.load(data_file)
 
     mail_groups = []
+    print(f'Grupos: {groups}')
     for mail_group in registro_mail_groups:
-        if mail_group['groupName'] in groups:
+        print(mail_group)
+        if mail_group in groups:
             mail_groups.append(mail_group)
 
     users_info = []
+    print(mail_groups)
     try:
         for mail_group in mail_groups:
             for suscrito in mail_group['suscritos']:
-                # id: int
-                # nombre: str
+                # suscrito -> dict:
+                #   id: int
+                #   nombre: str
                 usuario = Usuarios.objects.get(ID_Usuario=suscrito['id'],
                                                Nombre_Usuario=suscrito['nombre'])
                 nombre = usuario.Nombre_Usuario
                 correo = usuario.CorreoE
                 user_info = (nombre, correo)
                 users_info.append(user_info)
-            # sendGroupMail.delay(msg, correos_usuarios)
-            sendGroupMail(msg, users_info)
-            correos_usuarios = []
+            print('Cargando en celery...')
+            sendGroupMail.delay(msg, users_info)
+            print('Carga en celery completada')
     except Usuarios.DoesNotExist:
         return Response(data={
             "Error": "Usuario no existe."

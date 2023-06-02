@@ -178,7 +178,8 @@ with open('./mail.txt') as i:
 CELERY_BEAT_SCHEDULE = {
     'enviarmail': {
         'task': 'tareaconjunta',
-        'schedule': crontab(hour=0, minute=5),  # hour, minute -> 12:05 am
+        # 'schedule': crontab(hour=10, minute=15),  # hour, minute -> 12:05 am
+        'schedule': 90.0
     }
 }
 
