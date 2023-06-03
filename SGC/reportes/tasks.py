@@ -4,7 +4,7 @@ from django.core import mail
 from django.conf import settings
 from .models import Generan, Reportes
 from usuarios.models import Usuarios
-from mimes import _buildMIME, _buildMemorandumMIME
+from .mimes import _buildMIME, _buildMemorandumMIME
 
 # SE USARÀ DESPUES PARA TAREAS EN LAS QUE SE TENGA QUE VERIFICAR EL TIEMPO
 # RESTANTE DE ENTREGA DE REPORTES
