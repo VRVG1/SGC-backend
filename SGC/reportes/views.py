@@ -747,7 +747,16 @@ class PDF(FPDF):
         self.cell(txt=' ',border=0,ln=2)
         self.set_font("helvetica", size=12)
         self.multi_cell(w=0,txt='Sistema para la gestión del curso "SGC"\n',border=0,ln=2,align='C')
+        date01 = 'Jun 20'
+        fecha = date.today()
+        parse01 = datetime.strptime(
+            date01, '%b %d').date().replace(year=fecha.year)
 
+        if fecha < parse01:
+            semestre = 'Enero - Junio ' + str(fecha.year)
+        else:
+            semestre = 'Agosto - Diciembre ' + str(fecha.year)
+        self.cell(w=0,txt=semestre,border=0,ln=2,align='C')
         self.multi_cell(w=0,txt=f'Reporte de: {titulo}',border=0,ln=2,align='C')
         self.set_left_margin(10) # MARGEN REAL
         self.set_right_margin(10)
@@ -885,7 +894,7 @@ def p2MaestrosPuntualPDF(request, query):
         atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
 
         pdf.ln(tamL)
-        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera gráfica: ',ln=2,align='C')
 
         heights=[atiempoC,tardeC] #valores Y
         bar_labels=['A tiempo','Tarde'] #valores X
@@ -893,7 +902,7 @@ def p2MaestrosPuntualPDF(request, query):
         plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
         plt.xlabel('Entregas') 
         plt.ylabel('Cantidad de incidencia')
-        plt.title(f"Grafica de entregas de: {query}")
+        plt.title(f"Gráfica de entregas de: {query}")
 
         img_buf = io.BytesIO()
         plt.savefig(img_buf, dpi=200)
@@ -1037,7 +1046,7 @@ def p2MaestrosTardePDF(request, query):
         atiempoC = Generan.objects.filter(ID_Reporte = reporte, Estatus='Entrega a tiempo').count()
 
         pdf.ln(tamL)
-        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera grafica: ',ln=2,align='C')
+        pdf.cell(w=0,txt=f'A continuación se presenta la información de manera gráfica: ',ln=2,align='C')
 
         heights=[atiempoC,tardeC] #valores Y
         bar_labels=['A tiempo','Tarde'] #valores X
@@ -1045,7 +1054,7 @@ def p2MaestrosTardePDF(request, query):
         plt.bar(bar_labels,heights,width=0.2,color='#6B809B')
         plt.xlabel('Entregas')
         plt.ylabel('Cantidad de incidencia')
-        plt.title(f"Grafica de entregas de: {query}")
+        plt.title(f"Gráfica de entregas de: {query}")
 
         img_buf = io.BytesIO()
         plt.savefig(img_buf, dpi=200)

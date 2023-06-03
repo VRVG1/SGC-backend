@@ -119,6 +119,7 @@ class AsignarMateriaView(APIView):
         serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid():
+            found = False
             usuario = serializer.validated_data.get('ID_Usuario')
             materia = serializer.validated_data.get('ID_Materia')
             semestre = serializer.validated_data.get('Semestre')
@@ -135,6 +136,7 @@ class AsignarMateriaView(APIView):
                                               Dia=dia,
                                               Aula=aula,
                                               Semestre=semestre)
+                found = True
             except Asignan.DoesNotExist:
                 serializer.save()
 
@@ -149,40 +151,33 @@ class AsignarMateriaView(APIView):
                                               Semestre=semestre)
                 crearReportesUnidad(asignan, usuario)
             else:
-                date01 = 'Jun 20'
-                fecha = date.today()
-                parse01 = datetime.strptime(
-                    date01, '%b %d').date().replace(year=fecha.year)
+                if not found:
+                    date01 = 'Jun 20'
+                    fecha = date.today()
+                    parse01 = datetime.strptime(
+                        date01, '%b %d').date().replace(year=fecha.year)
 
-                if fecha < parse01:
-                    periodo = 'Enero - Junio ' + str(fecha.year)
+                    if fecha < parse01:
+                        periodo = 'Enero - Junio ' + str(fecha.year)
+                    else:
+                        periodo = 'Agosto - Diciembre ' + str(fecha.year)
+
+                    asignan = Asignan.objects.get(
+                        ID_Usuario=usuario, ID_Materia=materia, Grupo=grupo, Hora=hora, Dia=dia, Aula=aula, Semestre=semestre)
+                    for x in reportes:
+                        if x.Unidad != True:
+                            generate = Generan(
+                                Estatus=None, ID_Asignan=asignan, ID_Reporte=x, Periodo=periodo, Reprobados=0, Fecha_Entrega=x.Fecha_Entrega)
+                            generate.save()
+
+                    crearReportesUnidad(asignan,usuario)
                 else:
-                    periodo = 'Agosto - Diciembre ' + str(fecha.year)
+                    pass
+                user = Usuarios.objects.get(Nombre_Usuario=usuario)
+                user.Permiso = False
+                user.save()
 
-                asignan = Asignan.objects.get(ID_Usuario=usuario,
-                                              ID_Materia=materia,
-                                              Grupo=grupo,
-                                              Hora=hora,
-                                              Dia=dia,
-                                              Aula=aula,
-                                              Semestre=semestre)
-                for x in reportes:
-                    if x.Unidad != True:
-                        generate = Generan(Estatus=None,
-                                           ID_Asignan=asignan,
-                                           ID_Reporte=x,
-                                           Periodo=periodo,
-                                           Reprobados=0,
-                                           Fecha_Entrega=x.Fecha_Entrega)
-                        generate.save()
-
-                crearReportesUnidad(asignan, usuario)
-
-            user = Usuarios.objects.get(Nombre_Usuario=usuario)
-            user.Permiso = False
-            user.save()
-
-            return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -400,8 +395,11 @@ def borrarAs(request, pkM):
         usuario = Usuarios.objects.get(ID_Usuario=asign.ID_Usuario.ID_Usuario)
         generan = Generan.objects.filter(ID_Asignan=asign)
         for i in generan:
-            report = Reportes.objects.get(ID_Reporte=i.ID_Reporte.ID_Reporte)
-            report.delete()
+            try:
+                report = Reportes.objects.get(ID_Reporte=i.ID_Reporte.ID_Reporte, Unidad=True)
+                report.delete()
+            except Reportes.DoesNotExist:
+                pass
         usuario.Permiso = False
         usuario.save()
         asign.delete()
@@ -818,7 +816,16 @@ class PDF(FPDF):
         self.cell(txt=' ',border=0,ln=2)
         self.set_font("helvetica", size=12)
         self.multi_cell(w=0,txt='Sistema para la gestión del curso "SGC"\n',border=0,ln=2,align='C')
+        date01 = 'Jun 20'
+        fecha = date.today()
+        parse01 = datetime.strptime(
+            date01, '%b %d').date().replace(year=fecha.year)
 
+        if fecha < parse01:
+            semestre = 'Enero - Junio ' + str(fecha.year)
+        else:
+            semestre = 'Agosto - Diciembre ' + str(fecha.year)
+        self.cell(w=0,txt=semestre,border=0,ln=2,align='C')
         self.multi_cell(w=0,txt=f'Reporte de: {titulo}',border=0,ln=2,align='C')
         self.set_left_margin(10) # MARGEN REAL
         self.set_right_margin(10)
@@ -868,7 +875,7 @@ def p2MateriasCarreraPDF(request, query):
         pdf.set_left_margin(10) # MARGEN REAL
         pdf.set_right_margin(10)
         
-        pdf.cell(txt=f'De su busqueda "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
+        pdf.cell(txt=f'De su búsqueda "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
 
         txt = ''
         for i in aux:
@@ -882,11 +889,11 @@ def p2MateriasCarreraPDF(request, query):
         data = []
         for a in aux:
             data.append([a])
-            data.append(['Materia','Clave reticula','Unidades','Creditos','Horas Teoricas','Horas Practicas'])
+            data.append(['Materia','Clave retícula','Unidades','Créditos','Horas Teóricas','Horas Prácticas'])
             for i in materias:
                 if i.Carrera.Nombre_Carrera == a:
                     data.append([i.Nombre_Materia,i.Carrera.ID_Carrera,str(i.unidades),str(i.creditos),str(i.horas_Teoricas),str(i.horas_Practicas)])
-            data.append(['Total de horas teoricas','Total de horas practicas'])
+            data.append(['Total de horas teóricas','Total de horas prácticas'])
             data.append([str(p2HorasTeoCarrera(a)),str(p2HorasPraCarrera(a))])
 
         tamL = pdf.font_size_pt * 0.7
@@ -903,7 +910,7 @@ def p2MateriasCarreraPDF(request, query):
             if len(i) > 1:
                 pdf.set_font('Helvetica',size=12)
                 for u in i:
-                    if 'Total de horas teoricas' in i:
+                    if 'Total de horas teóricas' in i:
                         f = True
                         pdf.cell(w=tamC/2,h=tamL,txt=u,border=1,align='C')
                     elif len(u) > 23:
@@ -993,7 +1000,7 @@ def p2MateriasMaestroPDF(request, query):
         pdf.set_left_margin(10) # MARGEN REAL
         pdf.set_right_margin(10)
 
-        pdf.cell(txt=f'De su busqueda: "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
+        pdf.cell(txt=f'De su búsqueda: "{query}" se obtuvo la(s) siguiente(s) relación(es):',border=0,ln=2,align='L')
 
         txt = ''
         carreras = []
@@ -1020,7 +1027,7 @@ def p2MateriasMaestroPDF(request, query):
             for x,i in enumerate(asign):
                 if x == 0:
                     data.append([i.ID_Materia.Carrera.Nombre_Carrera])
-                    data.append(['Materia','Unidades','Creditos','Hrs. Teoricas','Hrs. Practicas'])
+                    data.append(['Materia','Unidades','Créditos','Hrs. Teóricas','Hrs. Prácticas'])
                     data.append([i.ID_Materia.Nombre_Materia,str(i.ID_Materia.unidades),str(i.ID_Materia.creditos),str(i.ID_Materia.horas_Teoricas),str(i.ID_Materia.horas_Practicas)])
                     oldC = i.ID_Materia.Carrera.Nombre_Carrera
                     oldM.append(i.ID_Materia.Nombre_Materia)
@@ -1031,7 +1038,7 @@ def p2MateriasMaestroPDF(request, query):
                             oldM.append(i.ID_Materia.Nombre_Materia)
                     else:
                         data.append([i.ID_Materia.Carrera.Nombre_Carrera])
-                        data.append(['Materia','Unidades','Creditos','Hrs. Teoricas','Hrs. Practicas'])
+                        data.append(['Materia','Unidades','Creditos','Hrs. Teóricas','Hrs. Prácticas'])
                         data.append([i.ID_Materia.Nombre_Materia,str(i.ID_Materia.unidades),str(i.ID_Materia.creditos),str(i.ID_Materia.horas_Teoricas),str(i.ID_Materia.horas_Practicas)])
                         oldC = i.ID_Materia.Carrera.Nombre_Carrera
                         oldM.append(i.ID_Materia.Nombre_Materia)
@@ -1144,7 +1151,7 @@ def p2MateriasHoraPDF(request, query):
         data = []
         for i in asignan:
             data.append([i.ID_Materia.Nombre_Materia])
-            data.append(['Semestre','Grupo','Dia','Aula'])
+            data.append(['Semestre','Grupo','Día','Aula'])
             data.append([i.Semestre,i.Grupo,i.Dia,i.Aula])
             data.append(['Maestro(a)'])
             data.append([i.ID_Usuario.Nombre_Usuario])
@@ -1231,7 +1238,7 @@ def p2MateriasAulaPDF(request, query):
         data = []
         for i in asignan:
             data.append([i.ID_Materia.Nombre_Materia])
-            data.append(['Semestre','Grupo','Dia','Hora'])
+            data.append(['Semestre','Grupo','Día','Hora'])
             data.append([i.Semestre,i.Grupo,i.Dia,i.Hora])
             data.append(['Maestro(a)'])
             data.append([i.ID_Usuario.Nombre_Usuario])
@@ -1317,7 +1324,7 @@ def p2MateriasGrupoPDF(request, query):
         data = []
         for i in asignan:
             data.append([i.ID_Materia.Nombre_Materia])
-            data.append(['Semestre','Aula','Dia','Hora'])
+            data.append(['Semestre','Aula','Día','Hora'])
             data.append([i.Semestre,i.Aula,i.Dia,i.Hora])
             data.append(['Maestro(a)'])
             data.append([i.ID_Usuario.Nombre_Usuario])
@@ -1376,20 +1383,20 @@ def p2MateriasCreditosPDF(request, query):
         buffer = io.BytesIO()
         
         global titulo
-        titulo = 'Materias que tienen cierta cantidad de creditos\n'
+        titulo = 'Materias que tienen cierta cantidad de créditos\n'
 
         pdf = PDF(format='Letter')
         pdf.add_page()
         pdf.set_font("helvetica",size=12)
-        pdf.set_title('Materias que tienen cierta cantidad de creditos')
+        pdf.set_title('Materias que tienen cierta cantidad de créditos')
 
         pdf.set_left_margin(55) # MARGEN REAL
         pdf.set_right_margin(55)
 
         if int(query) > 1:
-            pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} creditos\n',border=0,ln=1,align='C')
+            pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} créditos\n',border=0,ln=1,align='C')
         else:
-            pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} credito\n',border=0,ln=1,align='C')
+            pdf.multi_cell(w=0,txt=f'Las siguientes materias tienen: {query} crédito\n',border=0,ln=1,align='C')
         
         pdf.set_left_margin(10) # MARGEN REAL
         pdf.set_right_margin(10)
@@ -1399,7 +1406,7 @@ def p2MateriasCreditosPDF(request, query):
         data = []
         for i in materias:
             data.append([i.Nombre_Materia])
-            data.append(['Clave reticula','Hrs. Teoricas','Hrs. Practicas','Unidades'])
+            data.append(['Clave reticula','Hrs. Teóricas','Hrs. Prácticas','Unidades'])
             data.append([i.Clave_reticula,i.horas_Teoricas,i.horas_Practicas,i.unidades])
             data.append(['Carrera'])
             data.append([i.Carrera.Nombre_Carrera])
@@ -1482,7 +1489,7 @@ def p2MateriasUnidadPDF(request, query):
         data = []
         for i in materias:
             data.append([i.Nombre_Materia])
-            data.append(['Clave reticula','Hrs. Teoricas','Hrs. Practicas','Creditos'])
+            data.append(['Clave reticula','Hrs. Teóricas','Hrs. Prácticas','Créditos'])
             data.append([i.Clave_reticula,i.horas_Teoricas,i.horas_Practicas,i.creditos])
             data.append(['Carrera'])
             data.append([i.Carrera.Nombre_Carrera])
@@ -1569,11 +1576,11 @@ def p2AllCarrerasPDF(request):
             data.append([i.Nombre_Carrera])
             data.append(['Clave'])
             data.append([i.ID_Carrera])
-            data.append(['Total de horas teoricas','Total de horas practicas'])
+            data.append(['Total de horas teóricas','Total de horas prácticas'])
             data.append([p2HorasTeoCarrera(i.Nombre_Carrera),p2HorasPraCarrera(i.Nombre_Carrera)])
             data.append(['Algunos maestros de la carrera'])
             auxMae = set(Asignan.objects.filter(ID_Materia__Carrera = i).values_list('ID_Usuario__Nombre_Usuario','ID_Usuario__CorreoE'))
-            data.append(['Nombre','Correo electronico'])
+            data.append(['Nombre','Correo electrónico'])
             if len(auxMae) >= 5:
                 auxMae = list(auxMae)
                 for n in (range(5)):
@@ -1590,7 +1597,7 @@ def p2AllCarrerasPDF(request):
         for i in data:
             if len(i) > 1:
                 for u in i:
-                    if u == 'Total de horas teoricas' or u == 'Total de horas practicas':
+                    if u == 'Total de horas teóricas' or u == 'Total de horas prácticas':
                         h = True
                         pdf.set_font('helvetica','B',size=12)
                         pdf.cell(w=tamC/2,h=tamL,txt=f'{u}',border=1,ln=0,align='C')
