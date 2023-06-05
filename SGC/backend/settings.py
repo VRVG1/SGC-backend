@@ -166,6 +166,18 @@ CELERY_BROKER_URL = 'amqp://localhost'
 CELERY_TIMEZONE = 'America/Mexico_City'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# NOTE: Si quiere modificar el correo desde el que se enviaran los correos
+#       deberá cambiar los valores:
+#   -> DEFAULT_FROM_EMAIL
+#   -> EMAIL_HOST_USER
+#
+# NOTE: El sistema esta configurado para establecer una comunicación con el
+#       servidor SMTP de Google Gmail, en caso de querer usar otro, deberá
+#       modificar los valores:
+#   -> EMAIL_HOST => Dirección del servidor SMTP
+#   -> EMAIL_PORT => Puerto del servidor SMTP
+#   -> EMAIL_HOST_USER => Dirección de correo desde la que se hará la conexión
+#                         con el SMTP (Se envíaran correos).
 DEFAULT_FROM_EMAIL = 'reportesreminderitcg@gmail.com'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True
@@ -178,8 +190,8 @@ with open('./mail.txt') as i:
 CELERY_BEAT_SCHEDULE = {
     'enviarmail': {
         'task': 'tareaconjunta',
-        # 'schedule': crontab(hour=10, minute=15),  # hour, minute -> 12:05 am
-        'schedule': 90.0
+        'schedule': crontab(hour=11, minute=30),  # hour, minute -> 10:30 am
+        # 'schedule': 90.0
     }
 }
 

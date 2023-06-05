@@ -44,12 +44,14 @@ def _buildMIME(mail_from, mail_to, subject, nombre_usuario, msg):
     <td colspan="3" style='border-spacing: 0; border: none; background-color: rgb(243, 243, 243);'>
       <div style='color: rgb(0, 0, 0); padding: 0 5em; font-size: 2em; text-align: justify;'>
         <h1 style='padding: 0.5em 0; text-align: center;'>Correo de la Administración del SGC</h1>
-        <strong>
+        <strong style='color: rgb(0, 0, 0);'>
           Estimado {nombre_usuario}.
         </strong>
         <br>
         <br>
-        {msg}
+        <span style='color: rgb(0, 0, 0);'>
+          {msg}
+        </span>
         <br>
         <br>
       </div>
@@ -88,7 +90,7 @@ def _buildMIME(mail_from, mail_to, subject, nombre_usuario, msg):
     msgRoot['Subject'] = subject
     msgRoot['From'] = mail_from
     msgRoot['To'] = mail_to
-    msgRoot.preamble = "Correo de la administración del SGC"
+    msgRoot.preamble = "Correo de la administracion del SGC"
     alternativo = f"""
 Estimado {nombre_usuario}.
 
@@ -103,10 +105,10 @@ mensaje.
     msgAlternative = MIMEMultipart('alternative')
     msgRoot.attach(msgAlternative)
 
-    msgText = MIMEText(alternativo)
+    msgText = MIMEText(_text=alternativo, _subtype='plain', _charset='utf-8')
     msgAlternative.attach(msgText)
 
-    msgText = MIMEText(_text=mensaje, _subtype='html')
+    msgText = MIMEText(_text=mensaje, _subtype='html', _charset='utf-8')
     msgAlternative.attach(msgText)
 
     with open('./static/itcg.png', 'rb') as itcg_logo:
@@ -192,7 +194,9 @@ def _buildMemorandumMIME(mail_from,
           </strong>
           <br>
           <br>
-          {msg}
+          <span style='color: rgb(0, 0, 0);'>
+            {msg}
+          </span>
           <br>
           <br>
           <strong style='color: rgb(0, 0, 0);'>
@@ -266,10 +270,10 @@ JEFA DE PROYECTOS DE DOCENCIA
     msgAlternative = MIMEMultipart('alternative')
     msgRoot.attach(msgAlternative)
 
-    msgText = MIMEText(alternativo)
+    msgText = MIMEText(_text=alternativo, _subtype='type', _charset='utf-8')
     msgAlternative.attach(msgText)
 
-    msgText = MIMEText(_text=mensaje, _subtype='html')
+    msgText = MIMEText(_text=mensaje, _subtype='html', _charset='utf-8')
     msgAlternative.attach(msgText)
 
     mail_2_send = EmailMessage(subject=subject,

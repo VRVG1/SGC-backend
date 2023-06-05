@@ -18,15 +18,18 @@ def sendMensaje(msg, general, usuario):
     msg -- El cuerpo del mensaje a envíar
     general -- Bandera que indica si el correo será enviado a todos los
                usuarios o a un solo individuo
-    usuario -- Objeto que contiene los datos del usuario, debe ser None en caso
-               de que general sea True.
+    usuario -- Tupla que contiene los datos del usuario, debe ser None en caso
+               de que general sea True. En caso de que general sea False, la
+               tupla contendrá los datos:
+                   (Nombre_Usuario, CorreoE)
     """
-
+    print('Preparando el envio de correo...')
     messages = []
     de = settings.DEFAULT_FROM_EMAIL
     subject = 'Mensaje Importante SGC'
 
     if general:
+        print('Enviando mensaje general')
         usuarios = Usuarios.objects.all()
         for i in usuarios:
             messages.append(_buildMIME(mail_from=de,
@@ -35,10 +38,11 @@ def sendMensaje(msg, general, usuario):
                                        nombre_usuario=i.Nombre_Usuario,
                                        msg=msg))
     else:
+        print('Enviando mensaje individual')
         messages.append(_buildMIME(mail_from=de,
-                                   mail_to=usuario.CorreoE,
+                                   mail_to=usuario[1],
                                    subject=subject,
-                                   nombre_usuario=usuario.Nombre_Usuario,
+                                   nombre_usuario=usuario[0],
                                    msg=msg))
 
     if len(messages) != 0:
@@ -76,19 +80,22 @@ def tareaconjunta():
     # Se abre la conexión con el SMTP desde antes de empezar a buscar los
     # usuarios, esto debido a que el completar la conexión es un proceso
     # lento y tardado.
+    print('Abriendo conexión con SMTP mail...')
     connection = mail.get_connection()
     connection.open()
+    print('Conexión con SMTP establecida.')
     for reporte in Reportes.objects.filter(Opcional=False, Unidad=False):
+        nombre_reporte = reporte.Nombre_Reporte
+        print(f"Nombre Reporte: {nombre_reporte}")
         carreras = set()
         messages = []
         fecha_entrega = reporte.Fecha_Entrega
         # Dado que la fecha de entrega limite para el reporte todavía no
         # se vence se omite.
-        if hoy > fecha_entrega:
+        print(f"Fecha hoy: {hoy} Fecha Entrega: {fecha_entrega} mayor a: {fecha_entrega > hoy}")
+        if fecha_entrega > hoy:
             continue
-        nombre_reporte = reporte.Nombre_Reporte
-        print(f"Nombre Reporte: {nombre_reporte}")
-
+        print("Inicia proceso de construcción de memorandums...")
         # En cambio, si la fecha esta vencida, se busca a aquellos usuarios
         # que sean 'Docentes'
         for usuario in Usuarios.objects.filter(Tipo_Usuario='Docente'):
@@ -139,6 +146,7 @@ de Usted.
         connection.send_messages(messages)
     # Una vez el ciclo termina se cierra el enlace con el SMTP
     connection.close()
+    print('Conexión con SMTP cerrada.')
 
 
 @shared_task(name='EnviarmsgGrupo')

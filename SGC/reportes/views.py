@@ -379,6 +379,7 @@ def CrearGeneran(request, pk):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, OnlyAdminPermission])
 def AdminSendMail(request):
+    print(request.data)
     if request.method == 'POST':
         pk = request.data['pk']
         if pk == str(0):
@@ -390,16 +391,19 @@ def AdminSendMail(request):
                 return Response({'Error': 'Error al enviar el mensaje'}, status=status.HTTP_400_BAD_REQUEST)
 
         else:
+            usuario_data = ()
             try:
                 usuario = Usuarios.objects.get(PK=pk)
+                usuario_data = (usuario.Nombre_Usuario, usuario.CorreoE)
             except Usuarios.DoesNotExist:
                 return Response({'Error': 'Usuario no existe'}, status=status.HTTP_404_NOT_FOUND)
 
             try:
                 msg = request.data['msg']
-                sendMensaje.delay(msg, False, usuario)
+                sendMensaje.delay(msg, False, usuario_data)
                 return Response({'Exito': 'Mensaje enviado'}, status=status.HTTP_202_ACCEPTED)
-            except:
+            except Exception as e:
+                print(e)
                 return Response({'Error': 'Error al enviar el mensaje'}, status=status.HTTP_400_BAD_REQUEST)
 
 
