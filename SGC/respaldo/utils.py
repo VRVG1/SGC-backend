@@ -3,6 +3,7 @@ from shutil import rmtree
 from django.core.management import call_command
 
 import os
+import shutil
 
 
 def removeMediaFiles():
@@ -24,6 +25,29 @@ def removeMediaFiles():
                         print(f'{file} Eliminado.')
                     except Exception as e:
                         print(e)
+
+
+def removeStaticFiles():
+    """
+    Funcion encargada de eliminar el contenido dentro del directorio static.
+    """
+    static_path = Path('./static/')
+    if static_path.exists():
+        print(f'Eliminando contenido del directorio {static_path}...')
+        shutil.rmtree(static_path)
+        print(f'Contenido en "{static_path}" eliminado con exito.')
+        # with static_path:
+        #     for file in static_path.iterdir():
+        #         print(f'Eliminando {file}...')
+        #         if file.is_file():
+        #             os.remove(file)
+        #             print(f'{file} Eliminado.')
+        #         elif file.is_dir():
+        #             try:
+        #                 rmtree(file.__str__())
+        #                 print(f'{file} Eliminado.')
+        #             except Exception as e:
+        #                 print(e)
 
 
 def removeDBData(useFlush=False):

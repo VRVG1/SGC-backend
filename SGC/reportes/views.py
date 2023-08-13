@@ -5,6 +5,7 @@ import os
 
 from django.http import FileResponse
 
+from materias.models import Carreras, Materias
 from usuarios.models import Usuarios
 from .models import Reportes, Generan, Alojan
 from .serializers import AlojanSerializer, ReportesSerializer, GeneranSerializer
@@ -16,11 +17,22 @@ from rest_framework.authentication import TokenAuthentication
 from materias.models import Asignan
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from persoAuth.permissions import AdminDocentePermission, OnlyAdminPermission, OnlyDocentePermission, AdminEspectadorPermission, AdminEspectadorDocentePermission
-from .tasks import sendMensaje
+from .tasks import sendMensaje, sendGroupMail
+from .pnc_validators import checkAddRegistro,\
+        checkUpdateRegistro,\
+        checkDeleteRegistro
+from .vgc_validators import checkAddRegistroVGC,\
+        checkUpdateRegistroVGC,\
+        checkDeleteRegistroVGC
 from django.db.models import Q
 from fpdf import FPDF
 import matplotlib.pyplot as plt
 import matplotlib
+
+from pathlib import Path
+import json
+from .pdf_pnc import PncPDF
+from .excel_vgc import VGCExcel
 
 # Create your views here.
 
@@ -367,6 +379,7 @@ def CrearGeneran(request, pk):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated, OnlyAdminPermission])
 def AdminSendMail(request):
+    print(request.data)
     if request.method == 'POST':
         pk = request.data['pk']
         if pk == str(0):
@@ -378,16 +391,19 @@ def AdminSendMail(request):
                 return Response({'Error': 'Error al enviar el mensaje'}, status=status.HTTP_400_BAD_REQUEST)
 
         else:
+            usuario_data = ()
             try:
                 usuario = Usuarios.objects.get(PK=pk)
+                usuario_data = (usuario.Nombre_Usuario, usuario.CorreoE)
             except Usuarios.DoesNotExist:
                 return Response({'Error': 'Usuario no existe'}, status=status.HTTP_404_NOT_FOUND)
 
             try:
                 msg = request.data['msg']
-                sendMensaje.delay(msg, False, usuario.CorreoE)
+                sendMensaje.delay(msg, False, usuario_data)
                 return Response({'Exito': 'Mensaje enviado'}, status=status.HTTP_202_ACCEPTED)
-            except:
+            except Exception as e:
+                print(e)
                 return Response({'Error': 'Error al enviar el mensaje'}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -1065,3 +1081,1035 @@ def p2MaestrosTardePDF(request, query):
     else:
         if request.method == 'GET':
             return Response({'Error':'No hay suficiente informacion para poblar el pdf'},status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3ReprobacionMaestro(request, query):
+    u"""View filtro que retorna el indice de reprobación por maestro de una
+    carrera e información relacionada.
+    (ADMIN)
+
+    query -- String que conteine dos valores divididos por un '-':
+        [0] -> Nombre del Maestro
+        [1] -> Nombre de la Carrera
+    """
+    splitted = query.split("-")
+    try:
+        generan = Generan.objects.filter(Q(ID_Asignan__ID_Usuario__Nombre_Usuario=splitted[0]),
+                                         Q(ID_Asignan__ID_Materia__Carrera__Nombre_Carrera=splitted[1])
+                                         )
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    print(f"\n\nGeneran: {generan}")
+    if request.method == 'GET':
+        lista = []
+        for generacion in generan:
+            formato = {
+                'Nombre_Usuario': generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                'Nombre_Materia': generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                'Nombre_Carrera': generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                'Semestre': generacion.ID_Asignan.Semestre,
+                'Grupo': generacion.ID_Asignan.Grupo,
+                'Unidad': generacion.Unidad,
+                'aprobados': 100 - generacion.Reprobados,
+                'reprobados': generacion.Reprobados,
+            }
+            lista.append(formato)
+        return Response(data=lista, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3ReprobacionMateria(request, query):
+    u"""View filtro que retorna el indice de reprobación por materia de una
+    carrera e información relacionada.
+    (ADMIN)
+
+    query -- String que contiene dos valores divididos por un '-':
+        [0] -> Nombre de la Materia
+        [1] -> Nombre de la Carrera
+    """
+    splitted = query.split("-")
+    try:
+        generan = Generan.objects.filter(Q(ID_Asignan__ID_Materia__Nombre_Materia=splitted[0]),
+                                         Q(ID_Asignan__ID_Materia__Carrera__Nombre_Carrera=splitted[1]))
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        for generacion in generan:
+            formato = {
+                'Nombre_Usuario': generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                'Nombre_Materia': generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                'Nombre_Carrera': generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                'Semestre': generacion.ID_Asignan.Semestre,
+                'Grupo': generacion.ID_Asignan.Grupo,
+                'Unidad': generacion.Unidad,
+                'aprobados': 100 - generacion.Reprobados,
+                'reprobados': generacion.Reprobados,
+            }
+            lista.append(formato)
+        return Response(data=lista, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3ReprobacionGrupo(request, query):
+    u"""View filtro que retorna el indice de reprobación por grupo de una
+    carrera e información relacionada.
+    (ADMIN)
+
+    query -- String que contiene dos valores divididos por un '-':
+        [0] -> Grupo
+        [1] -> Nombre de la Carrera
+    """
+    splitted = query.split("-")
+    try:
+        generan = Generan.objects.filter(Q(ID_Asignan__Grupo=splitted[0]),
+                                         Q(ID_Asignan__ID_Materia__Carrera__Nombre_Carrera=splitted[1]))
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        lista = []
+        for generacion in generan:
+            formato = {
+                'Nombre_Usuario': generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                'Nombre_Materia': generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                'Nombre_Carrera': generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                'Semestre': generacion.ID_Asignan.Semestre,
+                'Grupo': generacion.ID_Asignan.Grupo,
+                'Unidad': generacion.Unidad,
+                'aprobados': 100 - generacion.Reprobados,
+                'reprobados': generacion.Reprobados,
+            }
+            lista.append(formato)
+        return Response(data=lista, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3IndiceEntregaReportesCarrera(request, nombre_reporte, nombre_carrera):
+    u"""View filtro que retorna, además del indice de entrega de reportes, la
+    información relacionada a los argumentos de la misma.
+    (ADMIN)
+
+    nombre_reporte -- Nombre del reporte del cual se esta buscando sus indices
+                      de entrega.
+    nombre_carrera -- Nombre de la carrera de la cual se esta filtrando el
+                      indice de entrega de reportes.
+    """
+    if request.method == 'GET':
+        if nombre_reporte == "" or nombre_carrera == "":
+            return Response({'Error': "Argumento vacio"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            reporte = Reportes.objects.get(Nombre_Reporte=nombre_reporte)
+            carrera = Carreras.objects.get(Nombre_Carrera=nombre_carrera)
+
+            generan = Generan.objects.filter(Q(ID_Reporte=reporte) &
+                                             Q(ID_Asignan__ID_Materia__Carrera=carrera))
+            count_puntual = generan.filter(Estatus="Entrega a tiempo").count()
+            count_inpuntual = generan.filter(Estatus="Entrega tarde").count()
+
+        except Reportes.DoesNotExist:
+            return Response({'Error': "Reporte no existe"},
+                            status=status.HTTP_404_NOT_FOUND)
+        except Carreras.DoesNotExist:
+            return Response({'Error': "Carrera no existe"},
+                            status=status.HTTP_404_NOT_FOUND)
+        except Generan.DoesNotExist:
+            return Response({'Error': "Generan no existe"},
+                            status=status.HTTP_404_NOT_FOUND)
+        formato = {
+                "Nombre_Reporte": reporte.Nombre_Reporte,
+                "Nombre_Carrera": carrera.Nombre_Carrera,
+                "Entrega_Limite": reporte.Fecha_Entrega,
+                "Count_Puntuales": count_puntual,
+                "Count_Inpuntuales": count_inpuntual
+                }
+    return Response(data=formato, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getRegistroPNC(request):
+    u"""View que retorna el registro general de PNCs. En caso de no existir, el
+    sistema lo crea.
+    (ADMIN)
+    """
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    registro_pnc = {
+        "lastPNCID": 1,
+        "registro": {
+            "reportesRegistrados": {
+                "idsReportes": []
+            }
+        }
+    }
+    if (registro_pnc_path.exists() and registro_pnc_path.is_file()):
+        # Si existe el archivo registro_pnc.json se deberá leer y transformar
+        # de formato json a python.
+        data_file = open(registro_pnc_path, "r")
+        registro_pnc = json.load(data_file)
+    else:
+        print(f"Creando '{registro_pnc_path}'...")
+        data_file = open(registro_pnc_path, "w")
+        json.dump(registro_pnc, data_file)
+
+    print(registro_pnc)
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def addRegistroPNC(request):
+    u"""View que permite agregar un nuevo reporte PNC al registro general de
+    PNC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'ID_reporte': int,
+        'new_PNC': {
+            'numeroPNC': int,
+            'folio': str,
+            'fechaRegistro': str,
+            'especIncumplida': str,
+            'accionImplantada': str,
+            'isEliminaPNC': bool
+        }
+    """
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    eval_res = checkAddRegistro(request.data)
+    if type(eval_res) is Response:
+        return eval_res
+
+    (id_reporte, new_pnc) = eval_res
+
+    # Se da formato a los IDs de los registros (reporte y nuevo pnc)
+    # Se da formato al id de reporte recibido
+    formated_id_reporte = f"reporte_{id_reporte}"
+    # Se toma el ultimo valor de lastPNCID en el registro_pnc para dar valor
+    # al nuevo ID del pnc a agregar
+    new_id_pnc = f"pnc_{registro_pnc['lastPNCID']}"
+
+    # Se busca el id del reporte recibido dentro de
+    # registro_pnc ==> registro -> reportesRegistrados -> idsReportes
+    if formated_id_reporte not in registro_pnc["registro"]["reportesRegistrados"]["idsReportes"]:
+        # Si no existe el ID de reporte en el registro general, se agrega
+        # al final del arreglo 'idsReportes'
+        registro_pnc["registro"]["reportesRegistrados"]["idsReportes"].append(formated_id_reporte)
+        # Se procede a agregar el nuevo id de reporte en el registro con
+        # su unico pnc registrado (new_id_pnc)
+        registro_pnc["registro"][formated_id_reporte] = {
+                "linkedPNCs": [new_id_pnc]
+                }
+    else:
+        # Si el ID de reporte existe en el registro general, solo se agrega
+        # el nuevo id pnc a su arreglo 'linkedPNCs'
+        registro_pnc["registro"][formated_id_reporte]["linkedPNCs"].append(new_id_pnc)
+
+    # Se asigna el diccionario recibido con los datos del PNC al new_id_pnc
+    registro_pnc["registro"][new_id_pnc] = new_pnc
+
+    # Dado que se esta agregando un nuevo registro PNC se incrementa lastPNCID
+    registro_pnc["lastPNCID"] = registro_pnc["lastPNCID"] + 1
+
+    with open(registro_pnc_path, "w") as data_file:
+        json.dump(registro_pnc, data_file)
+
+    print(request.data)
+
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def updateRegistroPNC(request):
+    u"""View que permite actualizar un reporte PNC del registro general de PNC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'ID_reporte': int
+        'ID_pnc': str
+        'new_PNC': {
+                'numeroPNC': int,
+                'folio': str,
+                'fechaRegistro': str,
+                'especIncumplida': str,
+                'accionImplantada': str,
+                'isEliminaPNC': bool
+        }
+
+        puede contener el atributo:
+        'ID_old_reporte': int
+    """
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    eval_res = checkUpdateRegistro(request.data, registro_pnc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    id_reporte = request.data['ID_reporte']
+    id_pnc = request.data['ID_pnc']
+    new_pnc = request.data['new_PNC']
+
+    formated_id_reporte = f"reporte_{id_reporte}"
+
+    if eval_res == 4:
+        id_old_reporte = request.data['ID_old_reporte']
+        # Se da formato al id del reporte viejo
+        formated_id_old_reporte = f"reporte_{id_old_reporte}"
+        linkedPNCs = registro_pnc['registro'][formated_id_old_reporte]['linkedPNCs']
+        # se busca el indice en el que se encuentra el PNC
+        idx_id_pnc_in_old_reporte = linkedPNCs.index(id_pnc)
+
+        for idx, iter_id_pnc in enumerate(linkedPNCs):
+            if idx > idx_id_pnc_in_old_reporte:
+                # Se procede a reducir en 1 el numeroPNC de aquellos registros
+                # PNC's agregados despues de aquel que se esta cambiando
+                numero_pnc = registro_pnc['registro'][iter_id_pnc]['numeroPNC']
+                registro_pnc['registro'][iter_id_pnc]['numeroPNC'] = numero_pnc - 1
+        # se elimina el PNC de la lista 'linkedPNCs' en el reporte viejo
+        registro_pnc['registro'][formated_id_old_reporte]['linkedPNCs'].pop(idx_id_pnc_in_old_reporte)
+
+        # Si no existe el id de reporte en el registro de reportes, es
+        # agregado
+        if formated_id_reporte not in registro_pnc['registro']['reportesRegistrados']['idsReportes']:
+            registro_pnc['registro']['reportesRegistrados']['idsReportes'].append(formated_id_reporte)
+            registro_pnc['registro'][formated_id_reporte] = {
+                    'linkedPNCs': [id_pnc]
+                }
+        else:
+            registro_pnc['registro'][formated_id_reporte]['linkedPNCs'].append(id_pnc)
+
+    # Si eval_res == 3 quiere decir que se esta modificando el registro PNC
+    # de un reporte con presencia en el registro_pnc. Por lo que no se
+    # tiene que efectuar ningún cambio en los 'linkedPNCs' de dicho reporte,
+    # Solo se cambiará el contenido del PNC.
+    registro_pnc['registro'][id_pnc] = new_pnc
+
+    with open(registro_pnc_path, "w") as data_file:
+        json.dump(registro_pnc, data_file)
+
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def deleteRegistroPNC(request):
+    u"""View que permite eliminar un reporte PNC del registro general de PNC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'ID_reporte': int
+        'ID_pnc': str
+    """
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    eval_res = checkDeleteRegistro(request.data, registro_pnc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    (id_reporte, id_pnc) = eval_res
+    formated_id_reporte = f"reporte_{id_reporte}"
+
+    # Se toma la lista de PNCs relacionados con el id_reporte
+    linkedPNC = registro_pnc['registro'][formated_id_reporte]['linkedPNCs']
+    # Se obtiene el idx en linkedPNC del PNC a eliminar
+    idx_of_id_pnc_in_linkedPNC = linkedPNC.index(id_pnc)
+    for idx, iter_id_pnc in enumerate(linkedPNC):
+        # Se procede a iterar la lista de PNCs relacionados con el reporte
+        if idx > idx_of_id_pnc_in_linkedPNC:
+            # Si el idx iterado es mayor al idx del PNC a eliminar significa
+            # que idx esta sobre aquellos PNC's registrados despues de quel
+            # que será eliminado por lo que...
+            # Se procede a copiar su numeroPNC
+            numeroPNC = registro_pnc['registro'][iter_id_pnc]['numeroPNC']
+            # Y a reducir en 1 este mismo.
+            registro_pnc['registro'][iter_id_pnc]['numeroPNC'] = numeroPNC - 1
+
+    # Terminado el ciclo, se procede a eliminar de la lista 'linkedPNC' del
+    # id_reporte el PNC a eliminar.
+    registro_pnc['registro'][formated_id_reporte]['linkedPNCs'].pop(idx_of_id_pnc_in_linkedPNC)
+    # Por ultimo, se elimina el registro PNC del registro_pnc
+    registro_pnc['registro'].pop(id_pnc)
+
+    with open(registro_pnc_path, "w") as data_file:
+        json.dump(registro_pnc, data_file)
+
+    return Response(data=registro_pnc, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def downloadRegistroPNC(request):
+    u"""View encargada de convertir el registro PNC a formato PDF.
+    (ADMIN)
+    """
+    cwd = os.getcwd()
+    filename_registro_pnc = "registro_pnc.json"
+    registro_pnc_path = Path(f'{cwd}/static/{filename_registro_pnc}')
+    with open(registro_pnc_path, "r") as data_file:
+        registro_pnc = json.load(data_file)
+
+    has_pncs = False
+    # Se verifica que existan reportes dentro del registro general.
+    if len(registro_pnc["registro"]["reportesRegistrados"]["idsReportes"]) == 0:
+        return Response(data={
+            "Error": "No existen reportes registrados por el momento."
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    # Si hay reportes, se procede a iterar la lista de ids de reportes
+    # registrados
+    for id_reporte in registro_pnc["registro"]["reportesRegistrados"]["idsReportes"]:
+        # Si existe por lo menos un elemento dentro de los PNCs relacionados
+        # a un reporte se activa la flag 'has_pncs' y se rompe el ciclo
+        if len(registro_pnc["registro"][id_reporte]["linkedPNCs"]) != 0:
+            has_pncs = True
+            break
+
+    # Se evalua si se tiene PNCs registrados
+    if has_pncs:
+        # Si se tiene, se procede a construir el archivo PDF
+        registro = registro_pnc["registro"]
+        ids_reportes = registro["reportesRegistrados"]["idsReportes"]
+        nombre_reporte = ""
+        fecha_reporte = ""
+        pdf = PncPDF()
+        pdf.set_title("Registro y Control de Productos No Conformes")
+        buffer = io.BytesIO()
+        for id_reporte in ids_reportes:
+            no_id_repo = id_reporte.split('_')[1]
+            try:
+                reporte = Reportes.objects.get(ID_Reporte=no_id_repo)
+            except Reportes.DoesNotExist:
+                return Response(data={ "Error": "No existe el reporte." },
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            nombre_reporte = reporte.Nombre_Reporte
+            fecha_reporte = reporte.Fecha_Entrega
+            linked_pncs = registro[id_reporte]["linkedPNCs"]
+            if len(linked_pncs) != 0:
+                pdf.printReporte(registro,
+                                 linked_pncs,
+                                 nombre_reporte,
+                                 fecha_reporte)
+        pdf.output(buffer)
+        buffer.seek(0)
+        return FileResponse(buffer,
+                            filename='Registro y Control de Productos No Conformes.pdf',
+                            as_attachment=False)
+    else:
+        return Response(data={"Error": "No hay registros guardados"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def p3RepUXCXMaeXMatXGraXGrp(request,
+                             id_carrera,
+                             nombre_maestro,
+                             id_materia,
+                             grado,
+                             grupo):
+    u"""View filtro que retorna la información relacionada a los argumentos de
+    la misma.
+         p3ReporteUnidad X Carrera X Maestro X Materia X Grado X Grupo
+
+        id_carrera -- ID de la Carrera de la que se va a consultar
+        nombre_maestro -- Nombre de un profesor
+        id_materia -- ID de la Materia que se encuentra relacionada a
+                      id_carrera
+        grado -- Semestre del cual se busca la asignación de materia al
+                 profesor
+        grupo -- Grupo al cual se esta asignada dicha materia del profesor
+    """
+    try:
+        carrera = Carreras.objects.get(ID_Carrera=id_carrera)
+        maestro = Usuarios.objects.get(Nombre_Usuario=nombre_maestro)
+        materia = Materias.objects.get(Q(pik=id_materia) & Q(Carrera=carrera))
+
+        asignan = Asignan.objects.filter(Q(ID_Materia=materia) &
+                                         Q(ID_Usuario=maestro) &
+                                         Q(Semestre=grado) &
+                                         Q(Grupo=grupo))
+    except Carreras.DoesNotExist:
+        return Response({'Error': "Carrera no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    except Usuarios.DoesNotExist:
+        return Response({'Error': "Usuario no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    except Asignan.DoesNotExist:
+        return Response({'Error': "Asignan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+    data_2_send = []
+    try:
+        for asignacion in asignan:
+            generan = Generan.objects.filter(Q(ID_Asignan=asignacion))
+            for generacion in generan:
+                data_2_send.append({
+                    "ID_Asignan": generacion.ID_Asignan.ID_Asignan,
+                    "ID_Reporte": generacion.ID_Reporte.ID_Reporte,
+                    "Nombre_Profesor": generacion.ID_Asignan.ID_Usuario.Nombre_Usuario,
+                    "Nombre_Materia:": generacion.ID_Asignan.ID_Materia.Nombre_Materia,
+                    "Nombre_Reporte": generacion.ID_Reporte.Nombre_Reporte,
+                    "Fecha_Entregado": generacion.Fecha_Entrega,
+                    "Fecha_Especificada_Entrega": generacion.ID_Reporte.Fecha_Entrega,
+                    "Carrera": generacion.ID_Asignan.ID_Materia.Carrera.Nombre_Carrera,
+                    "Semestre": generacion.ID_Asignan.Semestre,
+                    "Grupo": generacion.ID_Asignan.Grupo,
+                    "Reprobados": generacion.Reprobados
+                    })
+    except Generan.DoesNotExist:
+        return Response({'Error': "Generan no existe"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    if len(data_2_send) == 0:
+        return Response(data={
+            "Error": "Temas no encontrados"
+            },
+            status=status.HTTP_404_NOT_FOUND)
+    return Response(data_2_send, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def getRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que retorna el registro VGC especificado. En caso de no existir el
+    registro que se busca, lo crea.
+    (ADMIN)
+
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    # Por defecto la fecha de semanaDel será el día actual en el que se genera
+    # el registro
+    registro_vgc = {
+        'lastReporteID': 1,
+        'registro': []
+    }
+
+    if (registro_vgc_path.exists() and registro_vgc_path.is_file()):
+        data_file = open(registro_vgc_path, "r")
+        registro_vgc = json.load(data_file)
+    else:
+        print(f"Creando {registro_vgc_path}...")
+        data_file = open(registro_vgc_path, "w")
+        json.dump(registro_vgc, data_file)
+
+    print(registro_vgc)
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def addRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que permite agregar un nuevo reporte VGC en un registro especifico
+    de VGC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene los atributos:
+        'numeroReporte': int
+        'nombreProfesor': str
+        'asignatura': str
+        'GradoGrupo': str
+        'tema': str
+        'semanaProgramada': str
+        'verificacion': bool
+        'RCMRRC': bool
+        'indReprobacion': int
+        'CCEEID': bool
+        'observaciones': str
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    eval_res = checkAddRegistroVGC(request.data, registro_vgc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    # Se reasigna a una nueva variable solo para dar contexto del resultado
+    newReporte = eval_res['newReporte']
+
+    # Se incrementa el lastReporteID ya que se esta agregando un nuevo
+    # elemento
+    registro_vgc["lastReporteID"] = registro_vgc["lastReporteID"] + 1
+    registro_vgc["registro"].append(newReporte)
+
+    with open(registro_vgc_path, "w") as data_file:
+        json.dump(registro_vgc, data_file)
+
+    print(request.data)
+
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def updateRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que permite actualizar un reporte VGC en un registro especifico de
+    VGC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene el atributo:
+        'newReporte': {
+            'numeroReporte': int
+            'nombreProfesor': str
+            'asignatura': str
+            'GradoGrupo': str
+            'tema': str
+            'semanaProgramada': str
+            'verificacion': bool
+            'RCMRRC': bool
+            'indReprobacion': int
+            'CCEEID': bool
+            'observaciones': str
+        }
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    eval_res = checkUpdateRegistroVGC(request.data, registro_vgc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    # Se reasigna a una nueva variable solo para dar contexto del resultado
+    updatedRegistro = eval_res
+
+    for idx, reporte in enumerate(registro_vgc["registro"]):
+        if reporte["numeroReporte"] == updatedRegistro["numeroReporte"]:
+            registro_vgc["registro"][idx] = updatedRegistro
+            break
+
+    with open(registro_vgc_path, "w") as data_file:
+        json.dump(registro_vgc, data_file)
+
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def deleteRegistroVGC(request, id_carrera, seguimiento_no, semana):
+    u"""View que permite eliminar un reporte VGC de un registro especifico de
+    VGC.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene un unico atributo: 'numeroReporte'
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
+    try:
+        Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    eval_res = checkDeleteRegistroVGC(request.data, registro_vgc)
+    if type(eval_res) is Response:
+        return eval_res
+
+    no_reporte_2_delete = eval_res
+
+    idx_reporte_2_delete = -1
+    is_reporte_2_delete_found = False
+    for idx, reporte in enumerate(registro_vgc["registro"]):
+        if is_reporte_2_delete_found:
+            # Se debe actualizar el numeroReporte de todos los reportes que se
+            # encuentran despues del que fue eliminado
+            registro_vgc["registro"][idx]["numeroReporte"] = registro_vgc["registro"][idx]["numeroReporte"] - 1
+        elif reporte["numeroReporte"] == no_reporte_2_delete:
+            # Se toma el idx de aquel reporte cuyo atributo 'numeroReporte' es
+            # igual al recibido
+            idx_reporte_2_delete = idx
+            # Ya que fue encontrado el registro a eliminar, se activa la flag
+            # 'is_reporte_2_delete_found' que será usado para las demás
+            # iteraciones del for
+            is_reporte_2_delete_found = True
+
+    # Se reduce el lastReporteID en 1 ya que fue eliminado un reporte
+    registro_vgc["lastReporteID"] = registro_vgc["lastReporteID"] - 1
+    # Se elimina el reporte que se encuentra en el idx_reporte_2_delete
+    registro_vgc["registro"].pop(idx_reporte_2_delete)
+
+    with open(registro_vgc_path, "w") as data_file:
+        json.dump(registro_vgc, data_file)
+
+    return Response(data=registro_vgc, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminDocentePermission])
+def vgcExcel(request, id_carrera, seguimiento_no, semana):
+    u"""View encargada de convertir un registro especifico de VGC a formato
+    xlsx.
+    (ADMIN)
+
+    id_carrera -- ID de la Carrera a la cual pertenece el registro
+    seguimiento_no -- Valor númerico que representa el número de seguimiento
+                      del registro
+    semana -- Semana a la cual pertenece el seguimiento del registro
+    """
+    try:
+        carrera = Carreras.objects.get(ID_Carrera=id_carrera)
+    except Carreras.DoesNotExist:
+        return Response(data={
+            "Error": "Carrera no existe"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    cwd = os.getcwd()
+    filename_registro_vgc = "registro_vgc_{}_seg-no_{}_sem_{}.json".format(id_carrera,
+                                                                           seguimiento_no,
+                                                                           semana)
+    registro_vgc_path = Path(f'{cwd}/static/{filename_registro_vgc}')
+    with open(registro_vgc_path, "r") as data_file:
+        registro_vgc = json.load(data_file)
+
+    if registro_vgc['lastReporteID'] < 1:
+        return Response(data={"Error": "No hay registros guardados"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    registro = registro_vgc["registro"]
+    buffer = io.BytesIO()
+    vgc_excel = VGCExcel(buffer,
+                         carrera.Nombre_Carrera,
+                         seguimiento_no,
+                         semana)
+    vgc_excel.buildExcel(registro)
+    buffer.seek(0)
+    return FileResponse(buffer,
+                        filename='Formato para la Verificación de la Gestión del Curso.xlsx',
+                        as_attachment=True)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def getMailGroups(request):
+    u"""View que retorna el registro de grupos de correos. En caso de no existir
+    crea desde cero el registro.
+    (ADMIN)
+    """
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    registro_mail_groups = []
+
+    if registro_mail_groups_path.exists() and registro_mail_groups_path.is_file():
+        data_file = open(registro_mail_groups_path, "r")
+        registro_mail_groups = json.load(data_file)
+    else:
+        print(f"Creando {registro_mail_groups_path}...")
+        data_file = open(registro_mail_groups_path, "w")
+        json.dump(registro_mail_groups, data_file)
+
+    print("\n\n")
+    print(registro_mail_groups)
+    return Response(data=registro_mail_groups, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def addMailGroup(request):
+    u"""View que permite agregar un grupo de correos al registro.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene dos atributos: 'groupName' y
+                    'suscritos'
+    """
+    print(request.data)
+
+    # TODO: validar los datos recibidos
+    new_mail_group = request.data
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path) as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    registro_mail_groups.append(new_mail_group)
+    print('\n\n\n\n\t\tNuevo Grupo agregado')
+    print('\n\tGrupo Agregado:')
+    print(new_mail_group)
+    print('\n\tRegistro de Grupos:')
+    print(registro_mail_groups)
+    print('\n\n\n')
+
+    with open(registro_mail_groups_path, "w") as data_file:
+        json.dump(registro_mail_groups, data_file)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def updateMailGroup(request):
+    u"""View que permite actualizar un grupo de correos del registro.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene dos atributos: 'groupName' y
+                    'suscritos'
+    """
+    print('\n\n\n\t\tGrupo a modificar:')
+    print(request.data)
+
+    mail_group_name = request.data['groupName']
+    group_suscribers = request.data['suscritos']
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path) as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    for idx, grupo in enumerate(registro_mail_groups):
+        if grupo['groupName'] == mail_group_name:
+            registro_mail_groups[idx]['suscritos'] = group_suscribers
+            break
+
+    print('\n\n\n\tRegistro de grupos despues de modificar:')
+    print(registro_mail_groups)
+    print('\n\n\n\n')
+
+    with open(registro_mail_groups_path, "w") as data_file:
+        json.dump(registro_mail_groups, data_file)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def deleteMailGroup(request):
+    u"""View que permite eliminar un grupo de correos del registro.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Diccionario que contiene un unico atributo: 'groupName'
+    """
+    print('\n\n\n\t\tGrupo a eliminar:')
+    print(request.data)
+
+    mail_group_name = request.data['groupName']
+    idx_of_group = -1
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path) as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    for idx, grupo in enumerate(registro_mail_groups):
+        if grupo['groupName'] == mail_group_name:
+            idx_of_group = idx
+            break
+
+    if idx_of_group != -1:
+        registro_mail_groups.pop(idx_of_group)
+
+    print('\n\n\n\tRegistro de grupos despues de eliminar:')
+    print(registro_mail_groups)
+    print('\n\n\n\n')
+
+    with open(registro_mail_groups_path, "w") as data_file:
+        json.dump(registro_mail_groups, data_file)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated, OnlyAdminPermission])
+def sendMailToGroup(request):
+    u"""View cuya funcion es envíar correos a todos aquellos usuarios que forman
+    parte de un grupo de correos.
+    (ADMIN)
+
+    request -- Objeto de la libreria rest_framework que representa el cuerpo
+               de un request HTTP
+    request.data -- Lista de strings que representan el atributo 'groupName' de
+                    un un grupo de correos registrado.
+    """
+    # TODO: Validar los datos recibidos
+    print('\n\n\nHoal')
+    msg = request.data['msg']
+    groups = request.data['grupos']
+
+    cwd = os.getcwd()
+    filename = "registro_mail_groups.json"
+    registro_mail_groups_path = Path(f'{cwd}/static/{filename}')
+
+    with open(registro_mail_groups_path, 'r') as data_file:
+        registro_mail_groups = json.load(data_file)
+
+    mail_groups = []
+    print(f'Grupos: {groups}')
+    for mail_group in registro_mail_groups:
+        print(mail_group)
+        if mail_group in groups:
+            mail_groups.append(mail_group)
+
+    users_info = []
+    print(mail_groups)
+    try:
+        for mail_group in mail_groups:
+            for suscrito in mail_group['suscritos']:
+                # suscrito -> dict:
+                #   id: int
+                #   nombre: str
+                usuario = Usuarios.objects.get(ID_Usuario=suscrito['id'],
+                                               Nombre_Usuario=suscrito['nombre'])
+                nombre = usuario.Nombre_Usuario
+                correo = usuario.CorreoE
+                user_info = (nombre, correo)
+                users_info.append(user_info)
+            print('Cargando en celery...')
+            sendGroupMail.delay(msg, users_info)
+            print('Carga en celery completada')
+    except Usuarios.DoesNotExist:
+        return Response(data={
+            "Error": "Usuario no existe."
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return Response(data={
+            "Error": "Error al enviar el mensaje"
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(data={
+        "status": "OK"
+        },
+        status=status.HTTP_200_OK)

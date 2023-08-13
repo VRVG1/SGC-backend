@@ -1,6 +1,15 @@
 from django.urls import path
 from .views import MateriasView, CreateMateriasView, borrarM, borrarAs, CreateCarreraView, AsignarMateriaView, CarrerasView, borrarC
-from .views import updateM, updateC, AsignanView, getAsignan, getAsignanEspecific, AdminGetAsignan, getAsignanpk, getMateriasXCarrera, getAsignanCarrerapk
+from .views import getGrupos,\
+        updateM,\
+        updateC,\
+        AsignanView,\
+        getAsignan,\
+        getAsignanEspecific,\
+        AdminGetAsignan,\
+        getAsignanpk,\
+        getMateriasXCarrera,\
+        getAsignanCarrerapk
 from .views import getAsignanCarreraNamespk, p2MateriasCarrera, p2MateriasMaestro, p2MateriasHora, p2MateriasAula, p2MateriasGrupo, p2MateriasCreditos, p2MateriasUnidades
 from .views import p2MateriasCarreraPDF, p2MateriasMaestroPDF, p2MateriasHoraPDF, p2MateriasAulaPDF, p2MateriasGrupoPDF, p2MateriasCreditosPDF, p2MateriasUnidadPDF, p2AllCarrerasPDF
 urlpatterns = [
@@ -38,4 +47,6 @@ urlpatterns = [
     path('p2MatXCredPDF/<query>',p2MateriasCreditosPDF),
     path('p2MatXUPDF/<query>',p2MateriasUnidadPDF),
     path('p2AllCarrerasPDF',p2AllCarrerasPDF),
+
+    path('getGrupos/<query>', getGrupos),
 ]

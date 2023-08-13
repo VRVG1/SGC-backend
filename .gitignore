@@ -13,8 +13,21 @@ db.*
 # migrations
 **/migrations
 
+# Local files
+local_requirements.txt
+
+# sensitive data
+**/test/password.k2
+**/test/superuserdata.json
+**/test/testing.py
 # static
 **/static
 
 # media
 **/media
+
+# celery
+**/celerybeat-schedule
+
+# server dirs
+**/var/*
